@@ -70,16 +70,32 @@ list of what would break. Mark items as they are done, with the date and whether
 ## Facts to verify before relying on them
 GitHub's docs were not reachable from the agent session (network policy), so these come from search snippets or memory.
 Check each by hand, ideally on a throwaway repo and org first.
-- [ ] **Git and web links redirect after a transfer; GitHub Pages does not.** Search results (W3C's transfer guide, Boost list)
-      say so. Confirm in GitHub's current transfer docs.
+- [~] **Git and web links redirect after a transfer; GitHub Pages does not.** Git clone and web links: confirmed live
+      (2026-10-19, see below). Pages: **not yet verified**, needs a browser (github.io is blocked in agent sessions); user to
+      report what `<old-org>.github.io/scratch-tools/` and the new URL do.
 - [ ] **Do creating a new repo at the old name, or recreating the old repo to host a Pages redirect, break the redirect?**
       The Boost thread says it can. Test before using that workaround.
-- [ ] **Does `uses: owner/repo/.github/workflows/x.yml@<sha>` follow a transfer redirect?** No source found. Test with a
-      scratch caller workflow. If not, every external release workflow needs a one-line edit.
-- [ ] **Does `actions/checkout` with `repository: <old owner>/<name>` follow it?** Same test, same scratch repo.
-- [ ] **Does `urllib` in `catalog_build.py` follow the API's redirect for a transferred repo** (and keep its auth header)?
-- [ ] **`releases/download/...` and `raw.githubusercontent.com` URLs after a transfer.** Test with a real release asset and a
-      pinned-commit raw URL.
+- [x] **Does `uses: owner/repo/.github/workflows/x.yml@<sha>` follow a transfer redirect?** **No** (live, 2026-10-19).
+      Scratch repos `mpc-vst-test/scratch-tools` (transferred to `sd88me`) and `mpc-vst-test/scratch-caller`. After the transfer,
+      dispatching the caller with the old path was refused: `error parsing called workflow ... "mpc-vst-test/scratch-tools/.github/workflows/x.yml@<sha>": workflow was not found`.
+      Control: the same caller with `sd88me/scratch-tools/...@<sha>` ran green, and the same old-path caller ran green before the
+      transfer. **Every external release workflow pinning `sd88me/mpc-vst-plugins/.github/workflows/...@<sha>` needs a one-line
+      edit after the transfer**, so this is the main thing to announce to plugin authors.
+- [x] **Does `actions/checkout` with `repository: <old owner>/<name>` follow it?** **Yes** (live, 2026-10-19). A workflow in
+      `scratch-caller` doing `actions/checkout@v4` with `repository: mpc-vst-test/scratch-tools` at the pinned sha, after the
+      transfer, succeeded and read the file. The hard-coded `repository:` lines in `vst-release.yml:106` / `addin-release.yml:88`
+      keep working through the redirect, but change them anyway.
+- [~] **Does `urllib` in `catalog_build.py` follow the API's redirect for a transferred repo** (and keep its auth header)?
+      Partly verified (live, 2026-10-19). `GET api.github.com/repos/<old>/releases` answers `301 Moved Permanently` with
+      `Location: https://api.github.com/repositories/<id>/releases`, so the redirect exists. **Not verified end to end**: the agent
+      proxy rejects `/repositories/{id}/...` paths (and `sd88me/scratch-tools` was not in the session scope), so `urllib` got 403 from
+      the proxy, not from GitHub. `urllib` follows a 301 on GET to the same host and resends its headers, which is expected to keep
+      the auth header, but this was not observed. Re-run on a machine without that proxy, or just update the registry entry first.
+- [x] **`releases/download/...` and `raw.githubusercontent.com` URLs after a transfer.** **Both still work under the old name**
+      (live, 2026-10-19). `github.com/<old>/releases/download/v1/asset.txt` (curl -L) ends 200 with the asset;
+      `raw.githubusercontent.com/<old>/<sha>/pinned.txt` returns 200 with the pinned content; the new name serves the same. The pinned
+      raw URLs in `catalog/patches.json` therefore do not break on transfer, but rewrite them in the owner-change PR anyway.
+      Also seen: `github.com/<old>` answers `301` to `github.com/<new>`, and the `git clone` of the old URL worked (remote stays the old URL).
 - [ ] Which settings travel with a transfer: Pages config, Actions secrets and variables, webhooks (the Discord release
       workflow), branch protection, deploy keys, and the release-asset download counts the catalog shows.
 - [ ] Org Pages URL form (`<org>.github.io/mpc-vst-plugins/`) and whether a custom domain is wanted instead.
