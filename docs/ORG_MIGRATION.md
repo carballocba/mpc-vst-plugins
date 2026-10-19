@@ -70,9 +70,10 @@ list of what would break. Mark items as they are done, with the date and whether
 ## Facts to verify before relying on them
 GitHub's docs were not reachable from the agent session (network policy), so these come from search snippets or memory.
 Check each by hand, ideally on a throwaway repo and org first.
-- [~] **Git and web links redirect after a transfer; GitHub Pages does not.** Git clone and web links: confirmed live
-      (2026-10-19, see below). Pages: **not yet verified**, needs a browser (github.io is blocked in agent sessions); user to
-      report what `<old-org>.github.io/scratch-tools/` and the new URL do.
+- [x] **Git and web links redirect after a transfer; GitHub Pages does not.** Confirmed live (2026-10-19). Git clone and
+      `github.com` links redirect (see below). Pages: user opened both URLs in a browser after the transfer:
+      `https://mpc-vst-test.github.io/scratch-tools/` (old) gave **404**, and `https://sd88me.github.io/scratch-tools/` (new)
+      loaded without re-enabling Pages. So the old Pages URL dies at once, as the table above assumed.
 - [ ] **Do creating a new repo at the old name, or recreating the old repo to host a Pages redirect, break the redirect?**
       The Boost thread says it can. Test before using that workaround.
 - [x] **Does `uses: owner/repo/.github/workflows/x.yml@<sha>` follow a transfer redirect?** **No** (live, 2026-10-19).
@@ -96,8 +97,11 @@ Check each by hand, ideally on a throwaway repo and org first.
       `raw.githubusercontent.com/<old>/<sha>/pinned.txt` returns 200 with the pinned content; the new name serves the same. The pinned
       raw URLs in `catalog/patches.json` therefore do not break on transfer, but rewrite them in the owner-change PR anyway.
       Also seen: `github.com/<old>` answers `301` to `github.com/<new>`, and the `git clone` of the old URL worked (remote stays the old URL).
-- [ ] Which settings travel with a transfer: Pages config, Actions secrets and variables, webhooks (the Discord release
+- [~] Which settings travel with a transfer: Pages config, Actions secrets and variables, webhooks (the Discord release
       workflow), branch protection, deploy keys, and the release-asset download counts the catalog shows.
+      Observed by the user in the UI (2026-10-19, scratch repo): **Pages config traveled** (new URL served without re-enabling),
+      **the Actions secret traveled**, **the star traveled**. Not tested: variables, webhooks, branch protection, deploy keys,
+      release download counts. Redo the untested ones by hand after the real transfer.
 - [ ] Org Pages URL form (`<org>.github.io/mpc-vst-plugins/`) and whether a custom domain is wanted instead.
 
 ## Sequence
