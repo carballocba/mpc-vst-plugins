@@ -4,6 +4,62 @@ Status: **draft, nothing done on the real repos** (2026-10-14; scratch-repo expe
 structural repos, and optionally take in other developers' repos with their consent. This file is the plan and the
 list of what would break. Mark items as they are done, with the date and whether it was checked offline or on a device.
 
+## Handoff: resume here (state at 2026-10-20)
+To pick this up in a new session, say: **"Continue the open-mpc migration from the handoff in docs/ORG_MIGRATION.md."** Read this
+section, "Sequence" and "Facts to verify" first, then check each PR below with the GitHub tools (state, CI, review comments) before acting.
+
+**Where things stand.** The org `open-mpc` exists and is configured (2FA, base permission Read, member repo creation off). The
+experiments on scratch repos are done and recorded below. Nothing has been moved: `sd88me/mpc-vst-plugins` is still where it was and
+nothing was merged or released for the move. The docs on branch `claude/sharp-turing-zmivwy` (this file, `POLICY.md`) are not on
+`main` yet.
+
+| Piece | Where | State | Do not |
+|---|---|---|---|
+| Clients try the org address, then the old one (desktop app, `mpc-store.sh`) | draft PR #484, branch `claude/dual-catalog-url` | offline tests only; no app release yet | publish a release before it is tested |
+| Owner change `sd88me/mpc-vst-plugins` to `open-mpc/...` (workflows, `patch_check.py`, `patches.json`, links) | draft PR #483, branch `claude/org-owner-change` | offline tests only | **merge before the transfer** (the new paths do not exist; releases and the catalog build would break) |
+| Mirror of the catalog for the old address (`tools/catalog_mirror.py`, `mirror` job) | draft PR #485, branch `claude/catalog-mirror` | offline tests only; the job has never run | set `CATALOG_MIRROR_REPO` before the transfer |
+| Docs and policy draft | branch `claude/sharp-turing-zmivwy` | pushed, not merged | |
+
+PR #483 and #484 touch different files on purpose (`mpc-store.sh` and `catalog.go` only in #484); #484 and #485 both add a section to
+`docs/CATALOG.md` (different places). If a merge conflicts, rebase the later one.
+
+**The plan, with status.**
+1. [ ] Review and merge #484 and #485 (#485 stays off until its variable is set; #484 only adds a fallback).
+2. [ ] Draft desktop release from branch `claude/dual-catalog-url` (workflow "Desktop installer", Run workflow, a version above the last
+       published one), install and try it on a device (it should hit a 404 at the new address and fall back), then publish it after #484 is
+       merged. Let people update for as long as is comfortable; old installs cannot be updated after the old address dies.
+3. [ ] Write down the real repo's settings to re-add after the move: webhooks (the Discord release hook), variables, branch protection,
+       deploy keys, Pages source.
+4. [ ] Merge the docs branch.
+5. [ ] **Transfer** `sd88me/mpc-vst-plugins` to `open-mpc` (user, in the UI). Never create anything at the old name afterwards.
+6. [ ] Straight after: merge #483; change the `uses:` line in the `sd88me` ports' release workflows (they break at once); check Pages
+       serves from the org (re-enable from Actions if not); re-add the step 3 settings; run the `catalog.yml` workflow.
+7. [ ] Mirror: deploy key with write access on `sd88me/sd88me.github.io`, secret `MIRROR_DEPLOY_KEY`, variable `CATALOG_MIRROR_REPO=sd88me/sd88me.github.io`,
+       delete the scratch `scratch-tools/` folder in that repo, run `catalog.yml` again.
+8. [ ] Check: the new site loads, the old catalog URL answers through the mirror, an old desktop install still finds the catalog.
+9. [ ] Tell external plugin authors to change one line to `open-mpc/mpc-vst-plugins/.github/workflows/...@<sha>`; announce with the policy page.
+10. [ ] Add the second owner to `open-mpc` (decided to be after the transfer); finish the open items in `POLICY.md` (security contact,
+        `MAINTAINERS`, delisting deadline, unaffiliated wording).
+11. [ ] After a few catalog cycles: move this checklist into `NOTES.md` (dated) and trim this file.
+
+**Still unverified.** `catalog_build.py`'s `urllib` following the API's 301 with its auth header (needs a machine without the agent proxy;
+or update the registry entries and do not rely on it); variables, webhooks, branch protection and deploy keys across a transfer;
+download counts. The committed binary `tools/desktop/desktop` (x86-64 ELF) still holds the old address and is not rebuilt anywhere.
+
+**What a new session can and cannot do** (learned 2026-10-19/20):
+- The Claude GitHub App on an org has read-only Administration: it cannot create, delete or transfer repos or change org members. The user
+  does those in the UI. It can push to, and run workflows in, repos that exist and are attached with `add_repo` (the user must approve it).
+- Repos attached last time (they must be attached again in a new session): `sd88me/sd88me.github.io`, and for the scratch work
+  `mpc-vst-test/scratch-caller`. The `open-mpc` org and `sd88me/mpc-vst-plugins` are not attached by default beyond the session's own repo.
+- `*.github.io` is blocked from agent sessions, so Pages checks need the user's browser. The proxy rejects `api.github.com/repositories/<id>/...`,
+  and API calls to repos that are not attached return 403.
+- Offline tests: `go test ./...` in `tools/desktop`; `python3 tools/test_catalog.py` (run it from `tools/`, not with `python3 -I`; one test,
+  `AddinTest.test_installer_shell_tests`, fails on unmodified `main` in the sandbox); `python3 tools/test_patches.py`.
+
+**Leftovers to clean up (user, in the UI):** `mpc-vst-test/scratch-caller`, the whole `mpc-vst-test` org if unwanted, and the
+`scratch-tools/` folder in `sd88me/sd88me.github.io` (keep that repo: the mirror needs it). `sd88me/scratch-tools` and the extra
+`mpc-vst-test/scratch-tools` were already deleted.
+
 ## Decisions to make first
 - [~] **Org name: `open-mpc`** (created by the user on 2026-10-20, https://github.com/open-mpc, so the name was available).
       Trademark/name check done by the user (2026-10-20), org settings done (2FA required, base permission Read, repo creation
