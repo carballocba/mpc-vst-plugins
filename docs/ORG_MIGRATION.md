@@ -1,6 +1,6 @@
 # Moving to a GitHub organization: migration checklist
 
-Status: **draft, nothing done** (2026-10-14). Proposal from the community: create an org (working name "OpenMPC") for the
+Status: **draft, nothing done on the real repos** (2026-10-14; scratch-repo experiments run 2026-10-19 and 2026-10-20, see "Facts to verify"). Proposal from the community: create an org (working name "OpenMPC") for the
 structural repos, and optionally take in other developers' repos with their consent. This file is the plan and the
 list of what would break. Mark items as they are done, with the date and whether it was checked offline or on a device.
 
@@ -119,27 +119,48 @@ Check each by hand, ideally on a throwaway repo and org first.
       release download counts. Redo the untested ones by hand after the real transfer.
 - [ ] Org Pages URL form (`<org>.github.io/mpc-vst-plugins/`) and whether a custom domain is wanted instead.
 
-## Sequence
-1. **Rehearse** on a scratch org and a scratch repo that mimics `mpc-vst-plugins` (Pages site, a release with an asset,
-   a pinned reusable workflow, a raw URL). Record what redirects.
-2. **Before the transfer**, ship a release of the desktop app and `mpc-store.sh` that already knows both catalog URLs
-   (try the new one, fall back to the old). Do this first because old installs cannot be updated after the old URL dies.
-3. **Create the org**, add owners, set base permissions, enable 2FA requirement, set up secrets again where needed.
-4. **Transfer `mpc-vst-plugins`.** Re-enable Pages from the Actions workflow, check the nightly `catalog.yml` run, the
-   site, `catalog.json`, `catalog.tsv` and `patches.json`.
-5. **Keep the old Pages URL alive** for as long as old clients exist: a redirect page published from the old owner
-   (a `sd88me.github.io` repo) or a copy of `catalog.json` that points at new download URLs. Test before relying on it.
-6. **One PR** replacing `sd88me/mpc-vst-plugins` in the table above, with a test that `tools/test_patches.py`,
-   the desktop tests and `catalog_check.py --catalog` still pass. Update docs in the same PR (CLAUDE.md "Docs sync").
-7. **Transfer the other `sd88me` ports** one at a time, each with its `catalog/plugins/<id>.json` `repo` update in the
-   same step. Run the catalog build after each.
-8. **Tell external plugin authors** (their entries and workflows keep working if redirects hold; give them the new `uses:` path).
-9. **Announce** with the policy page. Mention that listing does not require moving.
-10. **Archive the checklist** into `NOTES.md` (dated, with what was verified and where) and delete or trim this file.
+## Sequence (revised 2026-10-20 after the scratch-repo experiments; only `mpc-vst-plugins` moves)
+Scope: transfer `sd88me/mpc-vst-plugins` to the org and nothing else. The ports stay under `sd88me` and stay listed; their
+`catalog/plugins/<id>.json` entries do not change. Rules from the experiments (see "Facts to verify"): `uses:` paths with the old
+owner stop working at once, the old Pages URL 404s at once, everything else redirects, and **nothing may ever be created at
+`sd88me/mpc-vst-plugins`** (it permanently kills the redirects; deleting it again does not restore them).
+
+1. **Prepare the org.** Create it with 2+ owners and 2FA required, set base permissions, check the name against Akai's
+   trademarks, confirm `<org>.github.io/mpc-vst-plugins/` is acceptable (or choose a custom domain). Write the policy page.
+2. **Make the old catalog URL survive without a repo at the old name.** Create `sd88me.github.io` (a user-site repo) holding a
+   copy of `catalog.json`, `catalog.tsv` and `patches.json` under `mpc-vst-plugins/` plus a redirect page for the site, so
+   `sd88me.github.io/mpc-vst-plugins/...` keeps answering once the project repo has left. **Unverified**: that a user-site
+   repo serves that folder after the project Pages site is gone. Test it on a scratch folder before the transfer. The org repo's
+   nightly job must push the copy (needs a token secret). New catalog files must be live at the new URL before clients switch.
+3. **Ship the dual-URL clients.** Release the desktop app and `mpc-store.sh` trying the org URL first and the old one as a
+   fallback. Old installs cannot be updated after the old URL dies, so this goes before the transfer.
+4. **Prepare, but do not merge, one PR** for `sd88me/mpc-vst-plugins` that replaces the owner in the table above:
+   `repository:` in `vst-release.yml:106` and `addin-release.yml:88` (this one is required: it only worked through the redirect),
+   the `uses:` paths in the workflows and docs, `defaultCatalogURL`, `mpc-store.sh`, the `SITE` fallback, the raw URLs in
+   `catalog/patches.json`, README and docs. Tests: `tools/test_patches.py`, the desktop tests, `catalog_check.py --catalog`.
+   Docs updated in the same PR (CLAUDE.md "Docs sync").
+5. **Update the `sd88me` ports' own workflows** (the `uses:` line pointing at `sd88me/mpc-vst-plugins/...@<sha>`) in
+   branches ready to merge the moment the transfer is done, since those would otherwise break. The new `uses:` path can only be
+   pinned to a sha that exists in the org repo, which is the same history after a transfer.
+6. **Transfer `mpc-vst-plugins` to the org** in a quiet period, then at once: re-check Pages (the config traveled in the
+   scratch test; re-enable from the Actions workflow if not), re-add what was not tested (variables, webhooks such as the Discord
+   release hook, branch protection, deploy keys), merge the PR from step 4 and the port branches from step 5, run the nightly
+   `catalog.yml`, and push the first copy to `sd88me.github.io`. Check the site, `catalog.json`, `catalog.tsv`, `patches.json`.
+7. **Tell external plugin authors**: their catalog entries are unaffected, downloads and git keep working, and they must change
+   one line in their release workflow to `<org>/mpc-vst-plugins/.github/workflows/...@<sha>`. This cannot be avoided without
+   recreating the old name, which loses every redirect, so do not do it.
+8. **Announce** with the policy page. Mention that listing does not require moving.
+9. **After a few catalog cycles**, archive the checklist into `NOTES.md` (dated, with what was verified and where) and trim
+   this file. Keep the `sd88me.github.io` copy and the dual-URL clients for at least one release cycle, longer if old installs remain.
+
+Still to verify before step 6 (not covered by the 2026-10-19/20 scratch tests): variables, webhooks, branch protection and
+deploy keys across a transfer; the user-site Pages folder in step 2; and `catalog_build.py` following the API's 301 with its auth
+header (needs a machine without the agent proxy). Stars and the Actions secret traveled; download counts are untested.
 
 ## Rollback
-Transfers can be reversed while the old name is free, so do not create anything at the old names until the new setup has run
-for a few catalog cycles. Keep the old Pages redirect and the dual-URL clients for at least one release cycle.
+A transfer can be reversed only by transferring the repo back, which needs the old name to be free; creating anything at the
+old name, even briefly, loses the redirects for good (live, 2026-10-20). Do not create anything at the old names until the new
+setup has run for a few catalog cycles. Keep the old Pages redirect and the dual-URL clients for at least one release cycle.
 
 ## Prior art (from memory, not re-checked)
 - VCV Rack's `library` repo: one thread or manifest per plugin, authors keep their repos, maintainers build and update.
