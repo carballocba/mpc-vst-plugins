@@ -144,9 +144,9 @@ owner stop working at once, the old Pages URL 404s at once, everything else redi
    it does not matter, since the project repo is gone after the transfer. Still do a dry run with the real folder name before
    the transfer. The org repo's
    nightly job must push the copy (needs a token secret). New catalog files must be live at the new URL before clients switch.
-3. **Ship the dual-URL clients.** Release the desktop app and `mpc-store.sh` trying the org URL first and the old one as a
+3. **Ship the dual-URL clients.** *(Draft PR #484, offline tests only, 2026-10-20; the app release itself is not done.)* Release the desktop app and `mpc-store.sh` trying the org URL first and the old one as a
    fallback. Old installs cannot be updated after the old URL dies, so this goes before the transfer.
-4. **Prepare, but do not merge, one PR** for `sd88me/mpc-vst-plugins` that replaces the owner in the table above:
+4. **Prepare, but do not merge, one PR** *(Draft PR #483, 2026-10-20; excludes `mpc-store.sh` and `catalog.go`, which #484 changes, and leaves the Go module path, `NOTES.md`/`ROADMAP.md` history and the ports' catalog entries)* for `sd88me/mpc-vst-plugins` that replaces the owner in the table above:
    `repository:` in `vst-release.yml:106` and `addin-release.yml:88` (this one is required: it only worked through the redirect),
    the `uses:` paths in the workflows and docs, `defaultCatalogURL`, `mpc-store.sh`, the `SITE` fallback, the raw URLs in
    `catalog/patches.json`, README and docs. Tests: `tools/test_patches.py`, the desktop tests, `catalog_check.py --catalog`.
