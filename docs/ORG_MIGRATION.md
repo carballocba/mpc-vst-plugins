@@ -6,7 +6,9 @@ list of what would break. Mark items as they are done, with the date and whether
 
 ## Decisions to make first
 - [~] **Org name: `open-mpc`** (created by the user on 2026-10-20, https://github.com/open-mpc, so the name was available).
-      Still to do: check the name against Akai's trademarks before it looks "official", and add a second owner. Nothing has been
+      Trademark/name check done by the user (2026-10-20), org settings done (2FA required, base permission Read, repo creation
+      by members off). **Second owner: decided to add one after the transfer, when a trusted person is found** (a change from the
+      plan, which wanted 2+ before; until then the org depends on one account, so keep its recovery codes safe). Nothing has been
       moved into it yet. Pages URL will be `open-mpc.github.io/mpc-vst-plugins/`, the new `uses:` path
       `open-mpc/mpc-vst-plugins/.github/workflows/...@<sha>`.
       (The site is already titled "Open MPC - Plugin Catalog".)
@@ -129,7 +131,7 @@ Scope: transfer `sd88me/mpc-vst-plugins` to the org and nothing else. The ports 
 owner stop working at once, the old Pages URL 404s at once, everything else redirects, and **nothing may ever be created at
 `sd88me/mpc-vst-plugins`** (it permanently kills the redirects; deleting it again does not restore them).
 
-1. **Prepare the org.** Create it with 2+ owners and 2FA required, set base permissions, check the name against Akai's
+1. **Prepare the org.** Create it with 2FA required (done 2026-10-20; the second owner is added after the transfer, see the org-name item), set base permissions, check the name against Akai's
    trademarks, confirm `<org>.github.io/mpc-vst-plugins/` is acceptable (or choose a custom domain). Write the policy page.
 2. **Make the old catalog URL survive without a repo at the old name.** Create `sd88me.github.io` (a user-site repo) holding a
    copy of `catalog.json`, `catalog.tsv` and `patches.json` under `mpc-vst-plugins/` plus a redirect page for the site, so
