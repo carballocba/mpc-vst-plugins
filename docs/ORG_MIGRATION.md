@@ -1,11 +1,14 @@
 # Moving to a GitHub organization: migration checklist
 
-Status: **draft, nothing done on the real repos** (2026-10-14; scratch-repo experiments run 2026-10-19 and 2026-10-20, see "Facts to verify"). Proposal from the community: create an org (working name "OpenMPC") for the
+Status: **draft, nothing done on the real repos** (2026-10-14; scratch-repo experiments run 2026-10-19 and 2026-10-20, see "Facts to verify"). Proposal from the community: create an org (created 2026-10-20 as `open-mpc`; the working name was "OpenMPC") for the
 structural repos, and optionally take in other developers' repos with their consent. This file is the plan and the
 list of what would break. Mark items as they are done, with the date and whether it was checked offline or on a device.
 
 ## Decisions to make first
-- [ ] **Org name.** Check availability on GitHub, and check the name against Akai's trademarks before it looks "official".
+- [~] **Org name: `open-mpc`** (created by the user on 2026-10-20, https://github.com/open-mpc, so the name was available).
+      Still to do: check the name against Akai's trademarks before it looks "official", and add a second owner. Nothing has been
+      moved into it yet. Pages URL will be `open-mpc.github.io/mpc-vst-plugins/`, the new `uses:` path
+      `open-mpc/mpc-vst-plugins/.github/workflows/...@<sha>`.
       (The site is already titled "Open MPC - Plugin Catalog".)
 - [ ] **Owners.** At least two, so no single account is a point of failure. Decide who gets merge rights on the catalog.
 - [ ] **What moves.** Proposed: `mpc-vst-plugins` (wrapper, tools, catalog, site, installer) and the ports `sd88me` owns.
