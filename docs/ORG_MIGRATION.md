@@ -13,7 +13,8 @@ list of what would break. Mark items as they are done, with the date and whether
 - [ ] **Owners.** At least two, so no single account is a point of failure. Decide who gets merge rights on the catalog.
 - [ ] **What moves.** Proposed: `mpc-vst-plugins` (wrapper, tools, catalog, site, installer) and the ports `sd88me` owns.
       Other developers' repos stay where they are and stay listed; an invitation to join is optional and needs their consent.
-- [ ] **Policy page** (review, yank, security contact, branding rule, who may merge). An official-looking org implies these.
+- [~] **Policy page.** Draft written 2026-10-20 in `POLICY.md` (rules the catalog already applies plus governance). Open items
+      in it: the unaffiliated wording after the trademark check, a security contact, `MAINTAINERS`, the delisting deadline, the second owner.
 
 ## What is hard-coded to `sd88me` (found offline, 2026-10-14)
 74 files mention it; 35 are `sd88me/mpc-vst-plugins`. The ones that matter at run time:
