@@ -74,8 +74,16 @@ Check each by hand, ideally on a throwaway repo and org first.
       `github.com` links redirect (see below). Pages: user opened both URLs in a browser after the transfer:
       `https://mpc-vst-test.github.io/scratch-tools/` (old) gave **404**, and `https://sd88me.github.io/scratch-tools/` (new)
       loaded without re-enabling Pages. So the old Pages URL dies at once, as the table above assumed.
-- [ ] **Do creating a new repo at the old name, or recreating the old repo to host a Pages redirect, break the redirect?**
-      The Boost thread says it can. Test before using that workaround.
+- [x] **Do creating a new repo at the old name, or recreating the old repo to host a Pages redirect, break the redirect?**
+      **Yes, it breaks all of them** (live, 2026-10-20). After the user created a new public `mpc-vst-test/scratch-tools` (old name of the
+      transferred repo), every old-name probe hit the new repo instead of `sd88me/scratch-tools`: `github.com/<old>` 200 (was 301),
+      `git clone` returned the new repo's commits, `api.../repos/<old>/releases` returned `[]`, the release asset download and the raw
+      URL at the old pinned sha both 404, `actions/checkout` with the old `repository:` at the old sha failed (git exit 128, sha not
+      in the new repo), and the old-path `uses:` stayed refused. The new owner path still worked (`sd88me/...@<sha>` ran green).
+      Consequence: never create anything at `sd88me/mpc-vst-plugins` after the move; a Pages redirect/keep-alive must live in a
+      differently named repo (`sd88me.github.io` or another name) and not at the old repo name. Whether deleting the new repo
+      restores the redirect was not tested (rollback unverified; GitHub's docs say a redirect can be reclaimed only if the name is
+      freed, so do not rely on it).
 - [x] **Does `uses: owner/repo/.github/workflows/x.yml@<sha>` follow a transfer redirect?** **No** (live, 2026-10-19).
       Scratch repos `mpc-vst-test/scratch-tools` (transferred to `sd88me`) and `mpc-vst-test/scratch-caller`. After the transfer,
       dispatching the caller with the old path was refused: `error parsing called workflow ... "mpc-vst-test/scratch-tools/.github/workflows/x.yml@<sha>": workflow was not found`.
