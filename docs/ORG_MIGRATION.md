@@ -84,6 +84,13 @@ Check each by hand, ideally on a throwaway repo and org first.
       differently named repo (`sd88me.github.io` or another name) and not at the old repo name. Whether deleting the new repo
       restores the redirect was not tested (rollback unverified; GitHub's docs say a redirect can be reclaimed only if the name is
       freed, so do not rely on it).
+      **Rollback test (live, 2026-10-20): deleting the new repo did NOT restore the redirect.** After the user deleted it, the old name
+      returned 404 for everything: `github.com/<old>`, `api.../repos/<old>` and `/releases`, `git clone`, the release asset download and
+      the raw URL. The old-path `uses:` stayed refused, and `actions/checkout` with the old `repository:` failed. The `sd88me` path
+      for `uses:` still resolved, but its job failed at the reusable workflow's own hard-coded `repository: <old owner>/scratch-tools`
+      checkout, which only worked while the redirect existed (green on 2026-10-19, red now). **Once the old name is taken, even
+      briefly, the transferred repo is reachable only under its new name**, so the `repository:` lines in `vst-release.yml:106` and
+      `addin-release.yml:88` must be changed in the owner-change PR, and no repo may be created at the old name before that.
 - [x] **Does `uses: owner/repo/.github/workflows/x.yml@<sha>` follow a transfer redirect?** **No** (live, 2026-10-19).
       Scratch repos `mpc-vst-test/scratch-tools` (transferred to `sd88me`) and `mpc-vst-test/scratch-caller`. After the transfer,
       dispatching the caller with the old path was refused: `error parsing called workflow ... "mpc-vst-test/scratch-tools/.github/workflows/x.yml@<sha>": workflow was not found`.
