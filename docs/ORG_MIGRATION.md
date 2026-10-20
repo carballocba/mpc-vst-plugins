@@ -164,7 +164,7 @@ owner stop working at once, the old Pages URL 404s at once, everything else redi
    this file. Keep the `sd88me.github.io` copy and the dual-URL clients for at least one release cycle, longer if old installs remain.
 
 Still to verify before step 6 (not covered by the 2026-10-19/20 scratch tests): variables, webhooks, branch protection and
-deploy keys across a transfer; the user-site Pages folder in step 2; and `catalog_build.py` following the API's 301 with its auth
+deploy keys across a transfer; and `catalog_build.py` following the API's 301 with its auth
 header (needs a machine without the agent proxy). Stars and the Actions secret traveled; download counts are untested.
 
 ## Rollback
