@@ -133,7 +133,7 @@ owner stop working at once, the old Pages URL 404s at once, everything else redi
 
 1. **Prepare the org.** Create it with 2FA required (done 2026-10-20; the second owner is added after the transfer, see the org-name item), set base permissions, check the name against Akai's
    trademarks, confirm `<org>.github.io/mpc-vst-plugins/` is acceptable (or choose a custom domain). Write the policy page.
-2. **Make the old catalog URL survive without a repo at the old name.** Create `sd88me.github.io` (a user-site repo) holding a
+2. **Make the old catalog URL survive without a repo at the old name.** *(Code: draft PR #485, offline tests only, 2026-10-20: `tools/catalog_mirror.py` and a `mirror` job in `catalog.yml` that stays off until the variable `CATALOG_MIRROR_REPO` is set; it needs a write deploy key on `sd88me/sd88me.github.io` in the secret `MIRROR_DEPLOY_KEY`, and the scratch `scratch-tools/` folder in that repo should be deleted.)* Create `sd88me.github.io` (a user-site repo) holding a
    copy of `catalog.json`, `catalog.tsv` and `patches.json` under `mpc-vst-plugins/` plus a redirect page for the site, so
    `sd88me.github.io/mpc-vst-plugins/...` keeps answering once the project repo has left. **Verified (live, user browser,
    2026-10-20)**: with the project repo `sd88me/scratch-tools` deleted, `sd88me.github.io/scratch-tools/catalog.json` and
