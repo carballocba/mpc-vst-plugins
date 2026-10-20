@@ -133,13 +133,14 @@ owner stop working at once, the old Pages URL 404s at once, everything else redi
    trademarks, confirm `<org>.github.io/mpc-vst-plugins/` is acceptable (or choose a custom domain). Write the policy page.
 2. **Make the old catalog URL survive without a repo at the old name.** Create `sd88me.github.io` (a user-site repo) holding a
    copy of `catalog.json`, `catalog.tsv` and `patches.json` under `mpc-vst-plugins/` plus a redirect page for the site, so
-   `sd88me.github.io/mpc-vst-plugins/...` keeps answering once the project repo has left. **Partly verified (live, user browser,
-   2026-10-20)**: with the project repo `sd88me/scratch-tools` deleted, `sd88me.github.io/scratch-tools/catalog.json` served the file
-   from the user-site repo's `scratch-tools/` folder, so the old catalog URLs can be kept alive this way. **Open**: the folder's
-   `index.html` URL showed the deleted project site's old page (`pages-v1`) at the same moment, most likely a stale cache; and in an
-   earlier run (project repo still present) the user site's page won over the project page, but that run was disturbed by an
-   accidental delete of the folder. Re-check the page URL after the cache clears. Only the `.json` files matter for old clients.
-   Test it again on a scratch folder before the transfer. The org repo's
+   `sd88me.github.io/mpc-vst-plugins/...` keeps answering once the project repo has left. **Verified (live, user browser,
+   2026-10-20)**: with the project repo `sd88me/scratch-tools` deleted, `sd88me.github.io/scratch-tools/catalog.json` and
+   `.../index.html` both serve the user-site repo's `scratch-tools/` folder, so the old catalog URLs can be kept alive this way
+   without a repo at the old name. Caveat: right after the delete the `index.html` URL still showed the deleted project site's page
+   for a while (a stale cache), so expect a delay of minutes before the old project page gives way. A first run, with the project
+   repo still present, was disturbed by an accidental delete of the folder, so precedence while both exist is not established;
+   it does not matter, since the project repo is gone after the transfer. Still do a dry run with the real folder name before
+   the transfer. The org repo's
    nightly job must push the copy (needs a token secret). New catalog files must be live at the new URL before clients switch.
 3. **Ship the dual-URL clients.** Release the desktop app and `mpc-store.sh` trying the org URL first and the old one as a
    fallback. Old installs cannot be updated after the old URL dies, so this goes before the transfer.
