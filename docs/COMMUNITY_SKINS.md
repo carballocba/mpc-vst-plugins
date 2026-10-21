@@ -104,3 +104,7 @@ engine-call mutex, MIDI CC 20-35 to the first page's Q-Links and NRPN to any par
 (the mutex and MIDI control offline only). Not taken: option `values`/`send`.
 
 Docs and skill: the techniques above (done in the skill's "Design techniques"), Design QA + TESTING.md templates.
+
+## Procedural realistic panels (2026-10-21, offline)
+Profit-5 (`sd88me/mpc-vst-profit5`) draws a realistic panel from scratch: the face, walnut, knobs, switches and LEDs are all generated at 2x,
+and each control is cut from its own tab. There are two panel styles from one script. The method is `.claude/skills/panel-skin/SKILL.md`.

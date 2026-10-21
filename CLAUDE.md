@@ -9,6 +9,7 @@ built-in JUCE plugin host, with native MPC screen skins. Start here:
 3. `docs/BENCH.md` (CPU check) and `docs/RELEASING.md` (release zip + installer) before shipping a port.
    `docs/ROADMAP.md`: repo features still to do. `docs/COMMUNITY_SKINS.md`: design techniques from other people's ports. `docs/ADDINS.md`: addins (libraries MPC preloads) in the catalog.
 4. `.claude/skills/mpc-vst-plugin/SKILL.md`: the build → skin → register → test workflow and gotchas.
+   `.claude/skills/panel-skin/SKILL.md`: drawing a realistic skin after a real instrument's panel.
 
 Ground rules:
 - Every port and release must be catalog-conformant (`mpc-plugin.json` via `release.py --repo --license`, `catalog_check.py --catalog`
