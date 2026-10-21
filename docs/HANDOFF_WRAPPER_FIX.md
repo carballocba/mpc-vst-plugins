@@ -60,7 +60,7 @@ release tag points at that branch's commit).
 | Clementine-XT | sd88me/mpc-vst-clementineXT | clementine-xt-v0.9.6 | #5 | |
 | Model-72 | sd88me/mpc-vst-model72 | model72-v1.0.1 | #2 | `catalog_check` warns: network / process calls (check whether 1.0.0 had it) |
 | Dexed (DX7) | sd88me/mpc-vst-dx7 | dx7-v1.0.7 | #13 | host tests fail 11 checks, identical on the pre-change wrapper (needs bank data): not caused by this work |
-| Morpho-PE | sd88me/mpc-vst-morpho-PE | in progress | | host test: 1 failure (`osc1_freq` wheel clicks), also on the old wrapper |
+| Morpho-PE | sd88me/mpc-vst-morpho-PE | morpho-pe-v1.0.2 | #1 | host test: 1 failure (`osc1_freq` wheel clicks), also on the old wrapper |
 | Sturm-TP | sd88me/mpc-vst-sturm | queued | | |
 | Profit-08 | sd88me/mpc-vst-profit8 | queued | | |
 | Luckydip | sd88me/mpc-vst-luckydip | not released | #1 (re-vendor of the toolchain) | merge, then release |
