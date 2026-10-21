@@ -61,8 +61,8 @@ release tag points at that branch's commit).
 | Model-72 | sd88me/mpc-vst-model72 | model72-v1.0.1 | #2 | `catalog_check` warns: network / process calls (check whether 1.0.0 had it) |
 | Dexed (DX7) | sd88me/mpc-vst-dx7 | dx7-v1.0.7 | #13 | host tests fail 11 checks, identical on the pre-change wrapper (needs bank data): not caused by this work |
 | Morpho-PE | sd88me/mpc-vst-morpho-PE | morpho-pe-v1.0.2 | #1 | host test: 1 failure (`osc1_freq` wheel clicks), also on the old wrapper |
-| Sturm-TP | sd88me/mpc-vst-sturm | queued | | |
-| Profit-08 | sd88me/mpc-vst-profit8 | queued | | |
+| Sturm-TP | sd88me/mpc-vst-sturm | sturm-tp-v0.1.2 | #1 | |
+| Profit-08 | sd88me/mpc-vst-profit8 | profit-08-v0.1.3 | #8 | |
 | Luckydip | sd88me/mpc-vst-luckydip | not released | #1 (re-vendor of the toolchain) | merge, then release |
 | Daemon + Daemon Listen | sd88me/mpc-vst-daemon | not started | | one repo, two plugins, one GitHub release with 4 zips; `--user-data engine`; see its docs/HANDOFF.md; check whether a release already was published |
 | Maze | sd88me/mpc-vst-maze | not started | | checkout is on branch `gen2-aarch64`, not main: ask before releasing from it |
@@ -73,6 +73,8 @@ release tag points at that branch's commit).
 Local only, not for the repo: `params.lock` is committed on each release branch; builds were made against `mpc-vst-plugins` main at 8c7be1c or later.
 
 ## 5. How to do a port release (what worked)
+
+**Do not run two builds or host tests of one port at once, and do not run an older mpc-vst-plugins checkout's `test_port.sh` on a port while it builds:** both write `<port>/vst/build/params.h`. That race made Profit-08's first build fail with `'param_t' has no member named 'refresh_display'`; a clean rebuild fixed it.
 
 1. A throwaway worktree of mpc-vst-plugins `origin/main`: `git worktree add <dir> origin/main` (the shared checkout switches branches under you).
 2. In the port repo: tracked tree clean, branch from main: `git checkout -b wrapper-fix-1021`.
@@ -96,7 +98,7 @@ The scripts used this session lived in the session scratchpad (`rel.sh`, `port.s
 
 ## 7. Open items, in order
 
-1. Finish batch 1 (Morpho-PE, Sturm-TP, Profit-08), then Daemon (two plugins), TR-MPC, Luckydip (after its PR); ask about Maze and OTT (non-main branches).
+1. Finish batch 1 ((done), then Daemon (two plugins), TR-MPC, Luckydip (after its PR); ask about Maze and OTT (non-main branches).
 2. Merge the per-port PRs (the user does the merging).
 3. Check the Model-72 catalog warning against its 1.0.0 release.
 4. Test one more port on the Force (an effect, since the report says effects show the problem too): track edit → automation with a Q-Link.
