@@ -98,6 +98,8 @@ for the pattern). This applies to every future port, not just ones that hit the 
 
 ## 2. Parameters
 - [ ] Stable order (the VST index is what skins and projects bind to). Append only; never reorder a shipped plugin.
+      `gen_vst.py` writes `params.lock` next to `vst.json` on the first build: commit it. A build fails when an existing key
+      changes index; `GEN_VST_RELOCK=1` accepts the break (before a first release only). Rebuild the skin after any change.
 - [ ] Options: an index; nudges step one option (the wrapper does this). Triggers: `"momentary": true`, which springs back.
 - [ ] A control can't be disabled from the host side: the wrapper has no `effGetParameterProperties`, and JUCE's VST2
       host has no "disabled" flag anyway. Hide it in the skin (`when=`). A control with nothing to do (a pager with one
