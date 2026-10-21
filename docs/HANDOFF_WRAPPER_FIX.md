@@ -67,7 +67,7 @@ release tag points at that branch's commit).
 | Daemon + Daemon Listen | sd88me/mpc-vst-daemon | v1.0.1 (one release, 4 zips) | #1 | `catalog_check` warns on network/dlopen (expected, as in 1.0.0) |
 | Maze | sd88me/mpc-vst-maze | not started | | checkout is on branch `gen2-aarch64`, not main: ask before releasing from it |
 | OTT | sd88me/mpc-vst-OTT | not started | | checkout is on branch `claude/friendly-wozniak-m9ak1l`: ask first |
-| TR-MPC family | sd88me/mpc-vst-TR-MPC | 6w6/8w8/9w9/cw78-vst-v1.1.2, trmpc-vst-v1.0.1, trmpc-tap-fx-vst-v1.0.1 | #? (one PR, branch wrapper-fix-1021) | six plugins, six tags; Gen2 target was missing and is added; TR-MPC host test: 3 fails, same on old wrapper; one transient g++ segfault on the aarch64 build, a retry passed |
+| TR-MPC family | sd88me/mpc-vst-TR-MPC | 6w6/8w8/9w9/cw78-vst-v1.1.2, trmpc-vst-v1.0.1, trmpc-tap-fx-vst-v1.0.1 | #4 | six plugins, six tags; Gen2 target was missing and is added; TR-MPC host test: 3 fails, same on old wrapper; one transient g++ segfault on the aarch64 build, a retry passed |
 | Cratedigger, monomodule, euclidier, acid | | not affected | | own wrapper |
 
 Local only, not for the repo: `params.lock` is committed on each release branch; builds were made against `mpc-vst-plugins` main at 8c7be1c or later.
