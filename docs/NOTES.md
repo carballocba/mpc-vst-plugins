@@ -1540,3 +1540,24 @@ The aarch64 zip has not been run on a Gen2 device.
 - 0.3.1 (host tests only): the unit is written through a bind mount of `/` (under any overlay); `status` reports `partial reason=bootstrap-missing` when the root filesystem lacks it. Tests: `test_the_bootstrap_lands_in_the_root_filesystem_under_a_usr_overlay` (fails on 0.3.0), `test_status_reports_a_bootstrap_that_only_an_overlay_holds`. **Device-verified 2026-10-22 (tester's Force, USB flash drive as the exec drive):** 0.3.0 removed with its uninstaller, 0.3.1 installed from the installer app (0.5.5 with a test catalog via `--catalog`), two reboots without manual starts: the exec mount came up and plugins loaded from the drive both times.
 - **0.3.2 (2026-10-22, offline):** the tester then found the internal-bay SSD (`/media/Force SSD`, exFAT, `noexec`) was never picked up: `noexec_drives()` only printed the USB stick. Cause: BusyBox awk treats the backslash in `[^\/]` as a literal, so `/media/Force\040SSD` failed `^\/media\/[^\/]+$`. gawk and mawk accept it, which is why the host tests (with a "SSD - Force" drive) passed. Reproduced and fixed with `busybox:1.36` in Docker (the pattern is now the string `"^/media/[^/]+$"`); a test rejects `[^\/]` in the script. `drive_exec` (replaced, kept for uninstalls) still has the old pattern.
 - **In-place update (2026-10-22, offline):** the installer app only runs the current script, which refused an installed 0.3.0/0.3.1 (`unsupported reason=other-version`), so users had to uninstall over SSH. 0.3.2 now reports those as `state=old-patch supported=1` (the app shows "Older version applied" with Apply and Undo), and `install`/`uninstall` remove them with their own `/etc/auto-exec/uninstall.sh` first. Unknown versions are still refused. Test: `test_an_older_version_is_updated_in_place` installs the real 0.3.0 and 0.3.1 scripts from git history (CI now checks out with `fetch-depth: 0`). Not yet run on a device.
+
+## 2026-10-22: MPC Live III (Gen2) network reachability from a brand-new unit, stock MPC OS 3.9.1
+
+A fresh Live III (no MockbaMod, no SSH setup) was brought onto the network for the first time, alongside the existing Force
+path above (which already has SSH; see `docs/FIRMWARE_BUILDER.md` and the device-specific access note kept out of this repo).
+
+- **USB-C is audio/MIDI only.** Plugged into a PC, it enumerates purely as a USB class-compliant audio interface and MIDI
+  device (confirmed from the host OS's device list: one MIDI endpoint, one audio in/out pair, no network adapter, no mass
+  storage, no serial/debug interface). USB-C is not a path to the device's filesystem or network stack on this hardware;
+  don't plan on it for install/SSH/debug access.
+- **Wi-Fi gotcha: router "Smart Connect" / tri-band auto-steering breaks the connect with no useful error.** On a tri-band
+  router merging 2.4/5/5GHz under one SSID with band-steering, the Live III's embedded Wi-Fi stack associated then failed
+  with a bare "Failure" (no detail) — WPA2-Personal/PMF-off were already correct, so this wasn't a security-settings issue.
+  A temporary guest 2.4GHz-only SSID connected fine, confirming it. Fix: disable Smart Connect's auto band selection and
+  give 2.4GHz its own dedicated SSID (same WPA2-Personal credentials, mode b+g+n, channel width 20/40MHz, AP isolation off,
+  PMF disabled) rather than letting the router steer it. The Live III joined that split SSID and got a normal DHCP lease.
+- **Stock device has no SSH.** Once on the LAN with a real IP: ICMP ping succeeds; TCP port 22 actively refuses the
+  connection (no sshd running, not just filtered); port 80 answers HTTP with a 404 (likely Akai's `az0x-webserver`, see
+  `docs/FIRMWARE_BUILDER.md` "Why"). So a stock, unmodified unit is reachable on the LAN for read-only network probing but
+  has no root/SSH access — that still needs the firmware-builder route (Force-only, unflashed so far) or the autorun-stick
+  route (`docs/USB_STICK.md`, Gen1/Force-verified only; Gen2 is offline-corroborated, not run by us; see `docs/GEN2.md`).
