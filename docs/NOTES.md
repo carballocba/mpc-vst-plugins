@@ -1561,3 +1561,30 @@ path above (which already has SSH; see `docs/FIRMWARE_BUILDER.md` and the device
   `docs/FIRMWARE_BUILDER.md` "Why"). So a stock, unmodified unit is reachable on the LAN for read-only network probing but
   has no root/SSH access — that still needs the firmware-builder route (Force-only, unflashed so far) or the autorun-stick
   route (`docs/USB_STICK.md`, Gen1/Force-verified only; Gen2 is offline-corroborated, not run by us; see `docs/GEN2.md`).
+
+## 2026-10-23: MPC OS 3.10.0 removes the autorun-stick root route (offline, static analysis of the stock update image)
+
+Compared the stock `MPC-3.9.1-Gen2-update.img` and the just-released `MPC-3.10.0-Gen2-update.img`: extracted each image's main
+xz rootfs with `debugfs`/`xz`, diffed the `MPC` executable. 3.9.1's `MPC` has the `autorun`, `.json`, `.check`, `open.sh` literal
+strings that the autorun-stick mechanism depends on, and `tools/usb_stick/saltscan.py` finds the salt at two offsets as before.
+**3.10.0's `MPC` has none of those strings or the salt bytes** — they are gone outright. In their place, immediately next to the
+same "Script detected... Do you want to run it?" prompt code, 3.10.0 adds `*.scriptpkg` and `/usr/bin/az01-signed-fs`: a signed-
+package scheme replacing the salted-hash check. This matches TheKikGen's prediction (NOTES.md 2026-10-20) that Akai would patch
+autorun at firmware v3.10+ — now confirmed, not speculative. `docs/USB_STICK.md` and `docs/GEN2.md` updated. Not flashed to any
+device; purely a binary diff of the two stock images. (See also a single unverified community report, relayed, that a live
+3.10.0 OTA update left one device's rootfs still reporting "3.9.1" underneath — if real, the live update path and a full image
+reflash may not behave the same way; not something to rely on without a direct device check.)
+
+## 2026-10-23: poloq's Plugin Manager had no Gen2 (aarch64) build; Gen2-compat PR opened upstream
+
+`tools/usb_stick`'s stick defaults to installing `plugin-manager` (poloq-instruments/mpc-vst-manager) via `mpc-store.sh`, which
+already refuses an install with no Gen2 build — and that plugin had none, so the stick's default install did nothing on a real
+Gen2 device. Forked the repo, branch `gen2-compat`: `vst.json` now lists `aarch64` in `targets`; the device probe's `bad_fs()`
+now accepts `exfat` (Gen2's `/nvme` is exFAT, not ext4); the `MPC.settings` glob now also checks `/data/Settings` (Gen2 has no
+`/media/az01-internal`); the installed-plugin scan reads `pluginList-arm-64bit` on aarch64 instead of `pluginList-arm`; the
+internal-storage preference and defaults list include `/nvme/Synths`; and `do_launch()`'s restart path was `#ifdef __arm__`
+(32-bit ARM only — on a real aarch64 build it silently took the dry-run branch and never actually restarted MPC), now
+`#if defined(__arm__) || defined(__aarch64__)`. Tested offline only: a new fake device `tests/devices/gen2.sh` (modelled on the
+confirmed Live III layout) resolves to `/nvme/Synths` under the existing x86 `tests/run.sh`, and the same build re-run under real
+aarch64 emulation (QEMU, `arm64v8/gcc:12-bookworm`) confirms the `uname()`-gated branches actually take the Gen2 path for real.
+PR: <https://github.com/poloq-instruments/mpc-vst-manager/pull/12>. Not run on real Gen2 hardware; not merged.
