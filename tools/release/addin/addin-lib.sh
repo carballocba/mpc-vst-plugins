@@ -241,9 +241,12 @@ remove_files() {
 check_so() {   # file
     set -- $(dd if="$1" bs=20 count=1 2>/dev/null | od -b | sed 's/^[0-7]*//')
     [ $# -ge 20 ] && [ "$1 $2 $3 $4" = "177 105 114 106" ] || die "$ADDIN_SO is not an ELF file"
-    [ "$5 $6" = "001 001" ] || die "$ADDIN_SO is not a 32-bit little-endian library"
     [ "${17} ${18}" = "003 000" ] || die "$ADDIN_SO is not a shared library"
-    [ "${19} ${20}" = "050 000" ] || die "$ADDIN_SO is not built for ARM"
+    case "$5 $6 ${19} ${20}" in
+        "001 001 050 000") ;;   # 32-bit little-endian, EM_ARM: Gen1 (Force, MPC Live/One/X/Key 61/Key 37)
+        "002 001 267 000") ;;   # 64-bit little-endian, EM_AARCH64: Gen2 (Live III, One G2, Key(s) G2)
+        *) die "$ADDIN_SO is not a 32-bit ARM or 64-bit AArch64 shared library" ;;
+    esac
 }
 
 # MockbaMod (and mods like it) launch MPC from their own boot script, which exports LD_PRELOAD from a file that the

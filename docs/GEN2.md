@@ -59,7 +59,8 @@ an old-scheme stick; not something to rely on.)
   `/sdcard/Synths`; see `docs/NOTES.md` 2026-10-10 for why that mount is still unconfirmed on a live device).
 - `mpc-store.sh` (the command the site gives) takes the aarch64 zip on an `aarch64` device and the armv7 one otherwise (`catalog.tsv` columns
   17-19: size64, sha256_64, url64; `-` when there is none). On Gen2 a plugin with no Gen2 build is refused before anything is downloaded,
-  and `list` marks it `[no Gen2 build]`. `MPC_STORE_ARCH` overrides `uname -m` (tests). Addins are armv7 only, so they are refused on Gen2.
+  and `list` marks it `[no Gen2 build]`. `MPC_STORE_ARCH` overrides `uname -m` (tests). Addins can have an aarch64 build like any
+  plugin (2026-10-23: catalog_check.py, release_addin.py and the shared addin installer no longer refuse one); none has shipped one yet.
   Because the extra columns follow `max_glibc`, an old `mpc-store.sh` reading the new `catalog.tsv` would take them as part of `max_glibc`;
   the script is fetched from the site on every run, so it and the table always match.
 - The desktop installer app (`tools/desktop`) reads `versions[].assets.aarch64` from `catalog.json`, installs the zip that fits the connected
