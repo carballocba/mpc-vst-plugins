@@ -25,7 +25,21 @@ mpc_service() {
     echo acvs
 }
 
-ours() { echo "$SYSTEMD_ROOT/etc/systemd/system/$1.service.d/$DROPIN_NAME"; }   # service
+DROPIN_ROOT=""   # /etc or /run, set once by resolve_dropin_root() before anything calls ours()
+ours() { echo "$SYSTEMD_ROOT$DROPIN_ROOT/systemd/system/$1.service.d/$DROPIN_NAME"; }   # service
+
+# Where the shared drop-in goes. One already there (from an install earlier in this boot) wins; otherwise /etc if
+# root is writable, or can be made so with a remount; otherwise /run (tmpfs: it does not survive a reboot, so an
+# addin installed this way needs reinstalling after one -- e.g. by re-running install.sh from an autorun stick).
+# Gen2's Live III is the first device seen with no writable /etc at all: a verity rootfs, remount refused outright,
+# unlike a plain ro mount (which boot_reload_add already handles by remounting around its own, separate write).
+resolve_dropin_root() {   # service
+    if [ -f "$SYSTEMD_ROOT/etc/systemd/system/$1.service.d/$DROPIN_NAME" ]; then DROPIN_ROOT=/etc; return; fi
+    if [ -f "$SYSTEMD_ROOT/run/systemd/system/$1.service.d/$DROPIN_NAME" ]; then DROPIN_ROOT=/run; return; fi
+    if ! root_ro || etc_overlay; then DROPIN_ROOT=/etc
+    elif remount_root rw; then remount_root ro; DROPIN_ROOT=/etc
+    else DROPIN_ROOT=/run; fi
+}
 writable() {   # file: can it be replaced? A probe file, since busybox's [ -w ] says yes to root on a read-only mount
     w="$(dirname "$1")/.mpc-addins-probe.$$"
     [ -w "$1" ] && (: > "$w") 2>/dev/null && rm -f "$w"
@@ -123,16 +137,14 @@ preload_add() {   # service unit so
         grep -qF "$3" "$2" || { mv "$2.prev" "$2"; echo "error: editing $2 failed; restored" >&2; exit 1; }
         rm -f "$2.prev"
     else
-        # the shared drop-in's own folder (/etc/systemd/system) may itself be on a read-only root with no /etc
-        # overlay at all (a verity rootfs, e.g. Gen2) -- not just the usual "etc is an overlay" case boot_reload_add
-        # handles (there /etc is already writable through the overlay, whatever state the physical root is in: no
-        # remount needed or wanted); remount the physical root only when /etc isn't separately writable.
-        was_ro=0; root_ro && ! etc_overlay && was_ro=1
-        if [ $was_ro = 1 ] && ! remount_root rw; then die "/ is read-only and could not be remounted: can't write $(ours "$1")"; fi
+        f=$(ours "$1")
+        was_ro=0; [ "$DROPIN_ROOT" = /etc ] && root_ro && ! etc_overlay && was_ro=1
+        if [ $was_ro = 1 ] && ! remount_root rw; then die "/ is read-only and could not be remounted: can't write $f"; fi
         sync_ours "$1" "$3" ""
         sync
         [ $was_ro = 0 ] || remount_root ro || echo "warning: / is still writable; it is read-only again after a reboot" >&2
-        grep -qF "$3" "$(ours "$1")" || { echo "error: writing $(ours "$1") failed" >&2; exit 1; }
+        [ "$DROPIN_ROOT" != /run ] || echo "warning: $f is on /run (tmpfs): not persistent, reinstall after a reboot" >&2
+        grep -qF "$3" "$f" || { echo "error: writing $f failed" >&2; exit 1; }
     fi
 }
 
@@ -145,7 +157,7 @@ preload_remove() {   # service so: out of every writable file that lists it, the
         done
     done
     if [ -f "$o" ]; then
-        was_ro=0; root_ro && ! etc_overlay && was_ro=1
+        was_ro=0; [ "$DROPIN_ROOT" = /etc ] && root_ro && ! etc_overlay && was_ro=1
         if [ $was_ro = 1 ] && ! remount_root rw; then die "/ is read-only and could not be remounted: can't update $o"; fi
         sync_ours "$1" "" "$2"
         sync
@@ -163,8 +175,12 @@ BOOT_MARK="mpc-vst-plugins addin installer"
 ADDIN_MOUNTS="${ADDIN_MOUNTS:-/proc/mounts}"
 etc_overlay() { awk '$2 == "/etc" && $3 == "overlay" { f = 1 } END { exit !f }' "$ADDIN_MOUNTS" 2>/dev/null; }
 root_ro() { awk '$2 == "/" && $4 ~ /(^|,)ro(,|$)/ { f = 1 } END { exit !f }' "$ADDIN_MOUNTS" 2>/dev/null; }
-remount_root() {   # rw | ro (logged under test)
-    if [ -n "$ADDIN_INSTALL_TEST" ]; then echo "mount -o remount,$1 /" >> "${ADDIN_TEST_LOG:-/dev/null}"; return 0; fi
+remount_root() {   # rw | ro (logged under test; ADDIN_REMOUNT_FAILS=1 simulates a verity root that refuses it)
+    if [ -n "$ADDIN_INSTALL_TEST" ]; then
+        echo "mount -o remount,$1 /" >> "${ADDIN_TEST_LOG:-/dev/null}"
+        [ "$1" = rw ] && [ -n "${ADDIN_REMOUNT_FAILS:-}" ] && return 1
+        return 0
+    fi
     mount -o remount,"$1" /
 }
 boot_unit_text() {   # service

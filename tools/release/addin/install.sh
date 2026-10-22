@@ -39,6 +39,7 @@ for f in "$ADDIN_SO" $ADDIN_CONF $ADDIN_FILES; do [ -f "$f" ] || die "$f is miss
 check_so "$ADDIN_SO"
 
 SVC=$(mpc_service)
+resolve_dropin_root "$SVC"
 check_lib "$SVC"
 UNIT=$(unit_with_preload "$SVC" "$(ours "$SVC")")   # not our own drop-in: it repeats the unit's list
 echo "Installing $ADDIN_NAME${ADDIN_VERSION:+ $ADDIN_VERSION}:"

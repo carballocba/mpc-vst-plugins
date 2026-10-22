@@ -232,11 +232,23 @@ export ADDIN_MOUNTS="$T/mounts-plain"; fresh; unit 'Restart=always'; ro a-w; chm
 printf '/dev/root / ext4 ro,relatime 0 0\n' > "$T/mounts-ro-noovl"; export ADDIN_MOUNTS="$T/mounts-ro-noovl"
 fresh; unit 'Environment=LD_PRELOAD=/usr/lib/x.so'; ro a-w; chmod u+w "$T/root"   # the remount makes / (so etc/) writable
 run a install.sh
-grep -qx "Environment=LD_PRELOAD=/usr/lib/x.so:$A" "$DROP" && ok "read-only root, no /etc overlay: the drop-in is written" || bad "ro/no-overlay write: $(cat "$T/out")"
-grep -q "mount -o remount,rw /" "$T/log" && [ "$(tail -n 3 "$T/log" | grep -c 'remount,ro /')" = 1 ] \
-  && ok "read-only root, no /etc overlay: remounted rw for the write, ro again after" || bad "remount: $(cat "$T/log")"
+grep -qx "Environment=LD_PRELOAD=/usr/lib/x.so:$A" "$DROP" && ok "read-only root, no /etc overlay, remount works: the drop-in is written to /etc" || bad "ro/no-overlay write: $(cat "$T/out")"
+[ "$(grep -c 'mount -o remount,rw /' "$T/log")" = 2 ] && [ "$(grep -c 'mount -o remount,ro /' "$T/log")" = 2 ] \
+  && ok "remounted twice (resolving where the drop-in goes, then the real write), rw/ro paired each time" || bad "remount count: $(cat "$T/log")"
 run a uninstall.sh
 [ ! -e "$DROP" ] && grep -q "mount -o remount,rw /" "$T/log" && ok "uninstall also remounts to remove the drop-in" || bad "uninstall remount: $(cat "$T/log")"
+
+# 16. same, but the remount itself is refused outright (true dm-verity, not just a plain ro mount -- found on the
+# real Live III: "mount: /: cannot remount /dev/root read-write, is write-protected"): the drop-in goes to /run
+# (tmpfs) instead, with a clear non-persistence warning, rather than failing the install
+fresh; unit 'Environment=LD_PRELOAD=/usr/lib/x.so'; ro a-w
+RUNDROP="$T/root/run/systemd/system/acvs.service.d/90-mpc-addins.conf"
+ADDIN_REMOUNT_FAILS=1 run a install.sh
+grep -qx "Environment=LD_PRELOAD=/usr/lib/x.so:$A" "$RUNDROP" && [ ! -e "$DROP" ] && ok "remount refused: the drop-in goes to /run instead" || bad "run fallback: $(cat "$T/out")"
+grep -q "not persistent" "$T/out" && ok "remount refused: install.sh warns it needs reinstalling after a reboot" || bad "no non-persistence warning: $(cat "$T/out")"
+[ "$(grep -c remount "$T/log")" = 1 ] && grep -q "mount -o remount,rw /" "$T/log" && ok "remount refused: one failed attempt, no retry, no remount back (nothing was made writable)" || bad "remount attempts: $(cat "$T/log")"
+ADDIN_REMOUNT_FAILS=1 run a uninstall.sh
+[ ! -e "$RUNDROP" ] && ok "remount refused: uninstall removes the /run drop-in the same way" || bad "run drop-in left: $(ls "$(dirname "$RUNDROP")" 2>&1)"
 export ADDIN_MOUNTS="$T/mounts-plain"
 
 [ $fails = 0 ] && echo "installer: all passed" || { echo "installer: $fails FAILED"; exit 1; }
