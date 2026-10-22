@@ -4,9 +4,22 @@ Gen2 MPC devices (MPC Live III and kin, RK3588) run a 64-bit userland: `/usr/bin
 `/usr/lib/ld-linux-aarch64.so.1` and there are no 32-bit libraries, so Gen1's armv7 `.so` files cannot load
 (analysed 2026-10-06 from the 3.9.1 Gen2 update image, offline; see `docs/FIRMWARE_BUILDER.md`). A plugin needs a second, aarch64 build.
 
-**Status (2026-10-09, offline only):** the packaging, validation and catalog plumbing below exists and is unit-tested. Nothing has
-been built for or run on a Gen2 device: there is no known SSH/root route on Gen2 yet. Nothing may be called "Gen2 verified"
-until a plugin has loaded on real hardware (`tested.json` carries the device).
+**Status (2026-10-09, offline): the packaging, validation and catalog plumbing below exists and is unit-tested.**
+
+**First real Gen2 hardware run (2026-10-22): JV-880 1.0.8 aarch64 installed and confirmed working on an MPC Live III
+(MPC OS 3.9.1, aarch64, glibc 2.39)** — loads, skin draws, expansions browse, makes sound. Verified install facts on this
+unit (via SSH, root):
+- Root filesystem is **dm-verity read-only** (`/dev/dm-0`); it cannot be remounted writable. `/sdcard` is **not mounted**
+  and `/synths` (the internal exfat content partition) is **read-only**.
+- The writable, exec install location is **`/nvme/Synths`** (`/dev/nvme0n1p2`, exfat `rw`). The only removable `/media/*`
+  drive was a USB stick mounted **`noexec`** (unusable for a `.so`), so the desktop app's old `/media`-only scan showed
+  nothing usable — now fixed (scans `/nvme/Synths`, promotes it to the internal drive when `/sdcard` is absent).
+- `MPC.settings` is at **`/data/Settings/MPC/MPC.settings`**; the aarch64 plugin-list key is **`pluginList-arm-64bit`**
+  (this run confirms the previously-unverified value `install.sh`/`mpc-store.sh` already use).
+- `install.sh -t /nvme/Synths` worked unchanged (it auto-detects `/data` settings and warns on noexec). The desktop app
+  and `mpc-store.sh` now resolve `/data` settings and the `/nvme` internal drive too.
+
+Still set a `tested.json` entry (device string contains "Gen2") per the site rule before showing "Gen2 · tested".
 
 ## One plugin, two zips
 - `release.py` names the zip from the `.so`'s ELF machine: `<Name>-<ver>-mpc-armv7.zip` (Gen1, unchanged) or

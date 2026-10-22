@@ -22,6 +22,7 @@ type Config struct {
 	User         string // "root"
 	RemoteTmp    string // where packages are unpacked on the device, "/tmp"
 	SynthsDir    string // "/sdcard/Synths": the internal drive, the default place to install
+	SynthsAlt    string // the internal drive on a device where SynthsDir is absent (Gen2/Live III: "/nvme/Synths"); promoted to primary when found and SynthsDir is not
 	RootGlobs    string // where to look for plugin locations, shell words (globs allowed): "/sdcard/Synths /media/*/Synths"
 	SettingsGlob string // where MPC.settings is
 	MountsFile   string // the list of mounts, "/proc/mounts"
@@ -30,7 +31,11 @@ type Config struct {
 }
 
 func defaultConfig() Config {
-	return Config{Port: "22", User: "root", RemoteTmp: "/tmp", SynthsDir: "/sdcard/Synths", RootGlobs: "/sdcard/Synths /media/*/Synths", MountsFile: "/proc/mounts", SettingsGlob: "/media/az01-internal/Settings/*/MPC.settings", AddinsDir: "/data/mpc-addins",
+	// Gen2 (aarch64, MPC OS 3.x; e.g. the Live III): /sdcard isn't mounted and /synths is read-only, so the writable
+	// internal drive is /nvme/Synths, and MPC.settings lives under /data; the extra globs here are harmless on
+	// Gen1/Force (no /nvme, and /media/az01-internal wins when both settings paths exist). SynthsAlt (/nvme/Synths) is
+	// promoted to the primary "internal drive" when /sdcard is absent (see readInfo).
+	return Config{Port: "22", User: "root", RemoteTmp: "/tmp", SynthsDir: "/sdcard/Synths", SynthsAlt: "/nvme/Synths", RootGlobs: "/sdcard/Synths /nvme/Synths /media/*/Synths", MountsFile: "/proc/mounts", SettingsGlob: "/media/az01-internal/Settings/*/MPC.settings /data/Settings/*/MPC.settings", AddinsDir: "/data/mpc-addins",
 		LibcPaths: "/lib/libc.so.6 /lib/arm-linux-gnueabihf/libc.so.6 /usr/lib/libc.so.6 /lib/libc-*.so /usr/lib/libc-*.so"}
 }
 
@@ -358,6 +363,25 @@ true`, shQuote(d.cfg.SynthsDir), d.cfg.SettingsGlob, shQuote(d.cfg.RemoteTmp), d
 			}
 		}
 	}
+	// Which location is the "internal drive": SynthsDir (/sdcard/Synths) on Gen1/Force. On a Gen2 unit (the Live III)
+	// /sdcard isn't mounted, so when SynthsDir isn't among the found roots but SynthsAlt (/nvme/Synths) is, that is the
+	// fixed internal drive and becomes primary.
+	primary := d.cfg.SynthsDir
+	if d.cfg.SynthsAlt != "" {
+		hasPrimary, hasAlt := false, false
+		for _, r := range cands {
+			switch r.Path {
+			case primary:
+				hasPrimary = true
+			case d.cfg.SynthsAlt:
+				hasAlt = true
+			}
+		}
+		if !hasPrimary && hasAlt {
+			primary = d.cfg.SynthsAlt
+			info.Synths = primary
+		}
+	}
 	// the same storage through two paths is one location; the first path wins (the internal drive is listed first)
 	seen := map[string]bool{}
 	keep := map[string]bool{}
@@ -366,8 +390,8 @@ true`, shQuote(d.cfg.SynthsDir), d.cfg.SettingsGlob, shQuote(d.cfg.RemoteTmp), d
 			continue
 		}
 		seen[r.ID] = true
-		r.Primary = r.Path == d.cfg.SynthsDir
-		r.Label = rootLabel(r.Path, d.cfg.SynthsDir)
+		r.Primary = r.Path == primary
+		r.Label = rootLabel(r.Path, primary)
 		r.NoSymlinks = noSymlinkFS(r.FS)
 		for _, loc := range locs {
 			if loc == r.Path {
@@ -400,7 +424,7 @@ true`, shQuote(d.cfg.SynthsDir), d.cfg.SettingsGlob, shQuote(d.cfg.RemoteTmp), d
 			delete(info.Stores, root)
 		}
 	}
-	if st, ok := info.Stores[d.cfg.SynthsDir]; ok {
+	if st, ok := info.Stores[primary]; ok {
 		info.Store = st
 	}
 	d.Info = info
