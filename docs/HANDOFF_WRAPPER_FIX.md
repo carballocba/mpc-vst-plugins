@@ -96,12 +96,13 @@ The scripts used this session lived in the session scratchpad (`rel.sh`, `port.s
   `docs/handoff-wrapper-fix/catalog-scan-2026-10-21.txt`. **Nothing has been posted.**
 - Reply to the author who reported it: drafted (`docs/handoff-wrapper-fix/reply-to-reporting-author.md`), **not sent**. It lists what was implemented (1, 6), documented (2-5),
   why a refresh opt-in replaced the line deletion, and asks which build and which effect they saw it on.
+- Discord announcement (two posts, under 2000 characters each): drafted 2026-10-22 in `docs/handoff-wrapper-fix/discord-announcement.md`, **not posted**.
 - Catalog idea, not done: mark entries built before the fix "rebuild recommended" until the author re-releases.
 
 ## 7. Open items, in order
 
-1. Finish batch 1 ((done), then Luckydip (after its PR); ask about Maze and OTT (non-main branches).
-2. Merge the open per-port PRs: Luckydip #2, Maze #18, OTT #1.
+1. Done 2026-10-22: all per-port PRs merged (Luckydip #2, Maze #18, OTT #1, handoff #494).
+2. Device-test and mark the new releases verified (in progress).
 3. Check the Model-72 catalog warning against its 1.0.0 release.
 4. Test one more port on the Force (an effect, since the report says effects show the problem too): track edit → automation with a Q-Link.
 5. Post the notice and issues to the other authors after the user approves the text; decide per-repo issues vs one per author.
