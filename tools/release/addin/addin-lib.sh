@@ -123,7 +123,15 @@ preload_add() {   # service unit so
         grep -qF "$3" "$2" || { mv "$2.prev" "$2"; echo "error: editing $2 failed; restored" >&2; exit 1; }
         rm -f "$2.prev"
     else
+        # the shared drop-in's own folder (/etc/systemd/system) may itself be on a read-only root with no /etc
+        # overlay at all (a verity rootfs, e.g. Gen2) -- not just the usual "etc is an overlay" case boot_reload_add
+        # handles (there /etc is already writable through the overlay, whatever state the physical root is in: no
+        # remount needed or wanted); remount the physical root only when /etc isn't separately writable.
+        was_ro=0; root_ro && ! etc_overlay && was_ro=1
+        if [ $was_ro = 1 ] && ! remount_root rw; then die "/ is read-only and could not be remounted: can't write $(ours "$1")"; fi
         sync_ours "$1" "$3" ""
+        sync
+        [ $was_ro = 0 ] || remount_root ro || echo "warning: / is still writable; it is read-only again after a reboot" >&2
         grep -qF "$3" "$(ours "$1")" || { echo "error: writing $(ours "$1") failed" >&2; exit 1; }
     fi
 }
@@ -136,7 +144,13 @@ preload_remove() {   # service so: out of every writable file that lists it, the
             if writable "$f"; then edit_preload "$f" remove "$2"; else echo "warning: $f lists $2 but is read-only" >&2; fi
         done
     done
-    [ ! -f "$o" ] || sync_ours "$1" "" "$2"
+    if [ -f "$o" ]; then
+        was_ro=0; root_ro && ! etc_overlay && was_ro=1
+        if [ $was_ro = 1 ] && ! remount_root rw; then die "/ is read-only and could not be remounted: can't update $o"; fi
+        sync_ours "$1" "" "$2"
+        sync
+        [ $was_ro = 0 ] || remount_root ro || echo "warning: / is still writable; it is read-only again after a reboot" >&2
+    fi
 }
 
 # After a reboot. Where /etc is an overlay that systemd mounts itself (etc.mount, a few seconds into boot, on MPC OS 3.x),

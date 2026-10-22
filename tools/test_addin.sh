@@ -225,4 +225,18 @@ printf '# written by someone else\n' > "$BU"; run a install.sh; cp "$T/out" "$T/
 export ADDIN_MOUNTS="$T/mounts-plain"; fresh; unit 'Restart=always'; ro a-w; chmod u+w "$T/root/usr/lib/systemd/system"; run a install.sh
 [ ! -e "$BU" ] && ! grep -q remount "$T/log" && ok "no /etc overlay: no reload unit, no remount" || bad "unit without an overlay"
 
+# 15. a read-only root with NO /etc overlay at all (a verity rootfs, e.g. Gen2 Live III: /etc sits directly on the
+# read-only root, nothing mounts an overlay over it) -- unlike case 7's "unit is read-only", here the shared drop-in's
+# own folder needs the same remount boot_reload_add already does for its unit, which preload_add/preload_remove did
+# not do (found on a real device: install failed with "Read-only file system" writing the drop-in)
+printf '/dev/root / ext4 ro,relatime 0 0\n' > "$T/mounts-ro-noovl"; export ADDIN_MOUNTS="$T/mounts-ro-noovl"
+fresh; unit 'Environment=LD_PRELOAD=/usr/lib/x.so'; ro a-w; chmod u+w "$T/root"   # the remount makes / (so etc/) writable
+run a install.sh
+grep -qx "Environment=LD_PRELOAD=/usr/lib/x.so:$A" "$DROP" && ok "read-only root, no /etc overlay: the drop-in is written" || bad "ro/no-overlay write: $(cat "$T/out")"
+grep -q "mount -o remount,rw /" "$T/log" && [ "$(tail -n 3 "$T/log" | grep -c 'remount,ro /')" = 1 ] \
+  && ok "read-only root, no /etc overlay: remounted rw for the write, ro again after" || bad "remount: $(cat "$T/log")"
+run a uninstall.sh
+[ ! -e "$DROP" ] && grep -q "mount -o remount,rw /" "$T/log" && ok "uninstall also remounts to remove the drop-in" || bad "uninstall remount: $(cat "$T/log")"
+export ADDIN_MOUNTS="$T/mounts-plain"
+
 [ $fails = 0 ] && echo "installer: all passed" || { echo "installer: $fails FAILED"; exit 1; }
