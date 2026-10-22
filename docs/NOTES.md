@@ -1499,6 +1499,12 @@ in docs/PORTING.md:
 Still open: whether MPC's host reads opcode 56's switch and whole-step flags, which could let Q-Links step option and
 integer params natively. That needs a probe plugin on the device.
 
+2026-10-22 (offline, not yet run on a device): `poc/propprobe.c` is that probe. A hand-written AEffect with five params (switch,
+integer 0-7 step 1, float step 0.25, plain, display index) that answers opcode 56 and logs every dispatcher opcode and every
+`setParameter` value to `/tmp/propprobe.log`. Build with `arm-linux-gnueabihf-gcc -O2 -fPIC -shared -o propprobe.so poc/propprobe.c`
+(Gen1) and register it like `textprobe`. Read: is opcode 56 ever sent, and do Q-Link turns of the IntStep/Switch params arrive as
+whole steps (compare with Plain)?
+
 ## 2026-10-21: params.lock, a build check on parameter order (offline only)
 A port author reports from production: inserting one parameter mid-list renumbered everything after it, and the RANDOM
 button then wrote a different parameter. Our skins resolve keys to indices when they are built, so a rebuilt skin follows the
