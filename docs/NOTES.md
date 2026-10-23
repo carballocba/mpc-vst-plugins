@@ -1541,7 +1541,14 @@ in docs/PORTING.md:
 Still open: whether MPC's host reads opcode 56's switch and whole-step flags, which could let Q-Links step option and
 integer params natively. That needs a probe plugin on the device.
 
-2026-10-22 (offline, not yet run on a device): `poc/propprobe.c` is that probe. A hand-written AEffect with five params (switch,
+**Result (Force, MPC OS 3.9.1, 2026-10-23): MPC ignores parameter properties.** `poc/propprobe.c` was inserted as an instrument and its Q-Links turned on
+track edit → automation. Opcode 56 was never sent (the host only called set/get name, display and label, plus the usual init toggle of
+parameter 0). Every param, including the one declared a switch, the integer 0-7 (step 1) and the float with a 0.25 step, received plain
+1/128 increments (0.0078, 0.0156, ...), the same as the undeclared one. So declaring `effGetParameterProperties` cannot make Q-Links
+step options or whole numbers natively; the wrapper's `settle()` stepping stays the way. Not changed: nothing in the wrapper. (The
+fifth param, "display index", was not turned.)
+
+2026-10-22 (offline): `poc/propprobe.c` is that probe. A hand-written AEffect with five params (switch,
 integer 0-7 step 1, float step 0.25, plain, display index) that answers opcode 56 and logs every dispatcher opcode and every
 `setParameter` value to `/tmp/propprobe.log`. Build with `arm-linux-gnueabihf-gcc -O2 -fPIC -shared -o propprobe.so poc/propprobe.c`
 (Gen1) and register it like `textprobe`. Read: is opcode 56 ever sent, and do Q-Link turns of the IntStep/Switch params arrive as

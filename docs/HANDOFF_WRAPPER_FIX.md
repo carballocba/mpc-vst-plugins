@@ -106,6 +106,6 @@ The scripts used this session lived in the session scratchpad (`rel.sh`, `port.s
 4. Test one more port on the Force (an effect, since the report says effects show the problem too): track edit → automation with a Q-Link.
 5. Post the notice and issues to the other authors after the user approves the text; decide per-repo issues vs one per author.
 6. Reply to the reporting author.
-7. Probe opcode 56 (`effGetParameterProperties`) on a device in `poc/`; only then consider wrapper changes for flaw 5.
+7. Done 2026-10-23: probe run on the Force, MPC never asks for opcode 56 and ignores the flags (NOTES.md); no wrapper change. (Was: probe opcode 56 (`effGetParameterProperties`) on a device in `poc/`; only then consider wrapper changes for flaw 5.)
 8. Ideas, not started: skip polling for params the skin does not show; spread the polls across blocks; a catalog "rebuild recommended" flag.
 9. Machinemodule: publish or delete the old v0.4.0 draft; the Gen2 build is untried on a Gen2 device.
