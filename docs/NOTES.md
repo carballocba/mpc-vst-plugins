@@ -1339,7 +1339,7 @@ Eleven `mmcblk0pN` dumps, read read-only with `debugfs`. Layout: p1-p6 raw/boot 
 - Independently confirmed (second real device, matches the 2026-10-06 Discord report from different hardware): `strings` over the raw `spl1`/`spl2`/`uboot1`/`uboot2` partitions find **no `inmusic-unlock-magic` string**; fastboot plumbing is present but not the OEM unlock command (see `docs/FIRMWARE_BUILDER.md`).
 
 ### 2026-10-10: Gen2 (MPC Live III) `probe_device.sh` output, live device (tester-run, settles the `/synths` question above)
-Two probe runs on the same unit (root via two different unofficial boot methods, both unrelated to this project; irrelevant to the result, both gave the same facts): `aarch64`, `MPC OS 5.0.18 (scarthgap)`, 8 cores (`0xd05`/`0xd0b`, i.e. Cortex-A55/A76, matches RK3588), VST2 compiled in (no VST3/LV2), `/data/Settings/MPC/MPC.settings` confirmed again.
+Two probe runs on the same unit (root via two different unofficial boot methods, both unrelated to this project; irrelevant to the result, both gave the same facts): `aarch64`, OS base `5.0.18 (scarthgap)` (the az01/buildroot base; the official user-facing version is MPC OS 3.9.1, as the info screen shows — same as other Gen1/Force units here that run a 5.0.x base), 8 cores (`0xd05`/`0xd0b`, i.e. Cortex-A55/A76, matches RK3588), VST2 compiled in (no VST3/LV2), `/data/Settings/MPC/MPC.settings` confirmed again.
 - `mount` shows **`/synths` is mounted** from `/dev/nvme0n1p1`, **exfat, `ro`** (`fmask=0022,dmask=0022`) — so `/synths/Synths` exists and (per `ls -ld`, 131072-byte dir, dated Jan 5 2026) is populated, but **nothing can be installed there: it's read-only on this unit.** This settles the open question above: `/synths/Synths` being listed in `MPC.settings` doesn't mean it's writable; whether it's writable depends on what's on the device's NVMe drive and how it got formatted/mounted.
 - `/storage` and `/content` are **not mounted at all** (no line in `mount`) — confirms the eMMC-dump finding that `/data/user-storage-image` / the `acvs-user-partition` loopback has never been provisioned on a real unit we've seen, on two separate devices now.
 - The only **writable** Synths locations on this device are removable media: `/media/9A5E-BA8A/Synths` and `/media/CARD/Synths` (both exfat, `rw`) — i.e. exactly the existing generic `/media/*/Synths` fallback our installers already scan. **No special Gen2 default is needed for install**; a Gen2 user installs with `-t "/media/<label>/Synths"` for whatever SD card or USB drive they have inserted, same as Gen1/Force with removable media. `/sdcard` and `/synths` are both unusable as install targets on this unit (`/sdcard` isn't mounted at all here; `/synths` is read-only).
@@ -1430,6 +1430,48 @@ From saustin2010's Percolator 2.0.0 (four drum voices, a MIDI channel each, like
   Live II a knob on the page followed a CC stream. Offline: `poc/selfset` in `tools/host_test.c` (reported once, then
   at most every 1024 frames; an option's change with an UpdateDisplay; nothing the engine didn't name).
 
+## 2026-10-13: community USB plugin manager (autorun stick): what it is, what it needs (read offline; not run on a device by us)
+
+A community developer's on-device installer ("Plugin Manager USB", MIT, its own repository; we link to it and do not host it) installs catalog plugins from a USB stick with no SSH. Read from its public docs and `package.py`; **nothing was run**.
+
+- **Reported by them:** tested only on a Live II Retro (Gen1), MPC OS 3.9.1. No Force or Gen2 claim. Windows and native Linux build hosts unverified.
+- **How the stick is accepted (from its packager):** `autorun.check` is the SHA-256 of `autorun.json`, `open.sh` and every listed runtime file in sorted order, plus a salt. The salt is 37 bytes read from a fixed offset in the stock `usr/bin/MPC`, XOR-ed with an 8-byte key. The packager accepts one exact `MPC` build (one SHA-256) and one offset.
+- **Offline comparison (2026-10-13):** the stock Akai Gen1 3.9.1 update image's `MPC` (112 MB) is exactly the build their packager expects. A modified Gen1 image (extra preload libraries, packed `MPC`) gave no match and no salt; use stock images only. Scanning for 37-byte windows that decode with the published key finds the salt in stock Gen1 3.9.1 (one copy, at their offset), stock Force 3.9.1 (two copies, different offsets) and a device Force `MPC` 3.9.1.2 that differs from stock: **the salt value is identical in all three**. Only its location moves.
+- **So** a stick checked for Gen1 3.9.1 should also pass on a Force at 3.9.1 (inference: not tried on a device; whether Force's firmware has the autorun reader at all is unchecked). Open: other MPC OS versions and Gen2. The salt value is Akai-derived: keep it out of the repo; a generator should find it in the user's own firmware by scanning.
+- **Risks to state wherever it is linked:** the route can be closed by an Akai update; package scripts run as root with no sandbox; a script that fails partway can leave a partial change; no full rollback; saving the session first matters (the app stops).
+- **Not done:** no run on a Force, no docs link yet (add it after a tested result).
+- **Force, MPC OS 3.9.1.2 (device, 2026-10-13):** their v1.0.0 stick (FAT32, checksums verified) showed the stock "Have you saved your project?" prompt on inserting it; Open made `az01-script-runner` run `sh /media/<label>/autorun/open.sh` as root (journal). So **the Force accepts the `autorun.check` made for Gen1 3.9.1 and has the autorun reader** (the salt is shared, see above). The stick mounts `noexec`; the runner uses `sh`. Their `setup.sh` then exited at once with "Existing preload setup is unsupported" (our `LD_PRELOAD` addins are in the `acvs` unit's Environment) before stopping MPC, which kept running. Also blocking on a Force: it looks for a MIDI port named "MPC Private", the Force's is "Akai Pro Force Private". Not tried: an unmodified Force with no addins.
+- **Our own stick (offline, 2026-10-13):** `tools/usb_stick/` (see `docs/USB_STICK.md`): a generator that scans the user's firmware for the salt (found once or twice, identical, in the stock Gen1 and Force images, raw or as an update image; no false hits over whole root filesystems), writes the same `autorun` layout, and a stick script that runs `mpc-store.sh` (plugin manager by default). The check formula was reproduced exactly against Eurikon's published stick. Ten offline tests with a made-up salt. Not run on a device yet.
+- **Our stick on a Force (device, 2026-10-13):** generated from the stock Force 3.9.1 `MPC`, FAT32 stick, MPC OS 3.9.1.2 with four `LD_PRELOAD` addins. Prompt appeared; Install ran `open.sh` as root via `az01-script-runner`, which started `mpc-usb-install.service` (RAM copy of the runtime); `mpc-store.sh` fetched `plugin-manager` 1.2.0 with `wget` (no TLS validation, hashes checked), stopped and started `acvs`, and added the plugin entry. Done in 5 s, MPC running afterwards, `plugin_manager.so` and its entry present, backup beside `MPC.settings`. Addins untouched. Plugin Manager then loaded on a track and worked (user-reported).
+
+## 2026-10-20: autorun route confirmed on Gen2 (community-reported; not run by us)
+
+TheKikGen's MPC-LiveXplore wiki published a write-up of the autorun-stick mechanism (same mechanism as the 2026-10-13
+section above: USB/SD script run as root after the on-screen prompt). It frames autorun as a general no-hack root route on
+MPC **and** Force firmware up to ~v2.9 / v3.9.1, regardless of prior SSH modding, and **predicts Akai will patch it in
+v3.10+** (unverified speculation — a risk to watch for our USB-stick route and the plugin manager).
+
+Community Discord follow-up (2026-10-19/20, relayed, not run by us): the route works on **both generations** — one user
+("fuzboxz") reports it confirmed on **Gen2**, and says he found the same bug independently and used it to **enable SSH** on
+Gen2. This is the first report that the autorun reader exists on Gen2 and yields root/SSH there. It directly addresses the
+open "no documented Gen2 root route" gap in `docs/GEN2.md`, but is **community-reported only**: we have not generated or run a
+Gen2 autorun stick ourselves, and the Gen2 salt/offset (which stock `MPC` build, which location) is still unverified by us.
+
+**Offline check against the Gen2 stock image (2026-10-20, us):** `tools/usb_stick/saltscan.py` run over `MPC-3.9.1-Gen2-update.img`
+finds the autorun salt in the Gen2 main rootfs (xz stream at offset 35289200), **identical to the Gen1/Force value**
+(redacted here — Akai-derived, not stored in the repo — 36 bytes, two copies). So the autorun-check scheme and salt are the **same on Gen2** —
+offline corroboration of the Gen2 device report, and our generator's stick should be accepted on Gen2. This is still offline: no
+Gen2 device run by us. Caveat/tooling gap: `find_salt()` won't auto-pick on the Gen2 image — it reports "7 different salt
+candidates" because the aarch64 rootfs yields 6 coincidental 37-byte printable runs (max WIDTH, no reserved zero-padding) alongside
+the real 36-byte salt.
+
+**Fixed (2026-10-20, us):** `saltscan.find_salt()` now drops any candidate whose length equals `WIDTH` (no zero padding) when a
+shorter, zero-padded candidate is also present, and only refuses if more than one *padded* value remains. Verified against all three
+stock images: Gen2, Gen1 and Force each resolve to the same single value (redacted here — Akai-derived, not stored in the repo; 36 bytes, 2 locations
+each) with no manual override needed. `tools/test_usb_stick.py` gained `test_full_width_runs_are_noise`; its two-values test was
+adjusted so both artificial salts are genuinely padded (so the "refuse on real disagreement" case still holds). 11/11 tests pass.
+`tools/usb_stick/make_stick.py` can now build a Gen2 stick unattended from a stock Gen2 image; still no real Gen2 device run.
+
 ## 2026-10-13: users cannot install to external drives (noexec) and the drive exec patch "does not work" (user reports, offline changes only)
 - Reports (MPC One / Hakai 3.9.1, a Force, a Crate Digger user): the SD card and a USB stick both "mounted noexec", the app's Install to destination "not selectable", the patch applied but the plugin still did not load. Same cause as 2026-10-03: noexec drives; the app's wording left no way forward.
 - Changed (offline: `go test ./...`, `tools/test_drive_exec.py`, no device): the app picks an exec location by default, shows the Install to chooser even with one noexec location, labels it "cannot run plugins: noexec", and links to step 7; its refusal and `install.sh`'s warning name both fixes (internal drive, or the drive exec patch). The patch has a `verify` command (also run after install) that reads MPC's own `/proc/<pid>/mountinfo` to tell "installed" from "MPC sees it". Not known yet whether MPC runs in a separate mount namespace; `verify` will say (`mpc-blind`). Ask the next reporter for the `verify` output. A real bug found by the new test: `awk -v` expands the `\040` in a mountinfo path, so a drive name with a space never matched; use `ENVIRON`.
@@ -1455,7 +1497,7 @@ From saustin2010's Percolator 2.0.0 (four drum voices, a MIDI channel each, like
 - Offline (x86 container, private mount namespace, tmpfs `noexec,nosuid,nodev` named `SSD - Force`): `dlopen` of a `.so` on it fails with "failed to map segment from shared object"; after `mount -o remount,exec` on the mount it loads. Mechanism only; nothing run on a device.
 - New read-only probe `tools/probe_mounts.sh` (`ssh root@<device-ip> sh -s < tools/probe_mounts.sh`) reports the mount options, the disk daemon and its units, config and udev rules mentioning `noexec`, strings in the daemon binary, and whether MPC's process shares the shell's mount namespace. Output from a Gen1 with a drive plugged in decides between a config edit, an automatic mode of drive-exec (bind mount of each drive's `Synths` folder, no choices), or a whole-drive remount.
 
-## 2026-10-14: mount probe on a Force Gen1 (device-verified, read-only; MPC OS 5.0.17-based image, kernel 6.18.26-az01-2026-04-30-rt4, armv7l)
+## 2026-10-14: mount probe on a Force Gen1 (device-verified, read-only; OS base 5.0.17 image (MPC OS 3.9.1), kernel 6.18.26-az01-2026-04-30-rt4, armv7l)
 - Run with `tools/probe_mounts.sh` plus read-only `busctl`/`strings`/`cat`; nothing changed. Drive plugged in: the Force's SD slot (an exFAT card via the "Akai MPC SD Card Reader", `/dev/sda1`, label-less, mounted at `/media/662522`).
 - **That card was mounted WITHOUT `noexec`** (`rw,relatime,fmask=0022,dmask=0022,iocharset=utf8,errors=remount-ro`, no `nosuid`/`nodev`, no `uhelper=`). So noexec is not applied to every drive by the daemon: it depends on the caller or the drive. The 2026-10-03 SSD line (`nosuid,nodev,noexec,...,uhelper=edisksd`) was not reproduced here (no SSD plugged in).
 - The mounter is `edisksd` 0.19 (`/usr/libexec/edisksd`, systemd `edisksd.service`, D-Bus `io.github.inmusicdev.edisksd`, objects `/io/github/inmusicdev/edisksd/dev/<name>`, `Filesystem.Mount(a{sv}) -> s`). No config file for it (no `/etc` file mentions noexec/mount options); udev rules (`80-edisksd.rules`, `90-edisks-az01.rules`, `90-edisks-smex.rules`) only set `EDISKSD_IGNORE` / `EDISKSD_REMOVABLE`, never mount options. The binary holds the strings `nosuid`, `nodev`, `noexec`, `showexec`, `DefaultMountOptions`, `options`: so the option set is built in the program and/or passed in the D-Bus `Mount` options by the caller. **No config switch exists** (approach 1 is out). Whether the D-Bus caller (MPC) or edisksd chooses `noexec` was not determined.
@@ -1538,3 +1580,114 @@ Force (MPC OS 3.9.1, armv7). CPU with `tools/bench.sh`, six held notes, by VCF o
 so the port offers 1x/2x only (2x default) and fixes the voice count at six. The Q-Link sweep stays at p99 47% (FAIL) at 2x;
 not yet profiled. Open: the PRESET dropdown in the plugin header does not open for this plugin (the Sounds browser works).
 The aarch64 zip has not been run on a Gen2 device.
+
+## 2026-10-22: auto exec does not start at boot under a `/usr` overlay; 0.3.1 draft (device read-only checks + host tests)
+- Tester report (SSD-less Force, USB stick, 0.3.0): after a reboot the bootstrap unit is loaded and listed under `multi-user.target`, but it was never queued (`Job=` and `ConditionTimestamp=` empty, no journal lines). `/` is `ro`, `/etc` is an overlay, and **`/usr` is an overlay** (`lowerdir=/tmp/usr:/usr`, upper under `/media/az01-internal/system/usr/overlay`) that something mounts after systemd starts. Which add-on mounts it is still unknown.
+- 0.3.0's `root-bootstrap.sh` wrote the unit and its wants link to `/usr/lib/systemd/system` while that overlay was mounted, so they went into the overlay's upper layer. systemd builds the boot transaction before the overlay exists, so it never saw them. A later daemon-reload makes them look installed. **Confirmed on the tester's Force (2026-10-22, read-only):** through a bind mount of `/` the root filesystem has no `auto-exec-bootstrap.service`; the overlay's upper dir holds the unit and the link (dated the 0.3.0 install). Only `/etc/mtab` mentions `/tmp/usr`, so what mounts the overlay is still unknown.
+- Control (user's Force, 2026-10-22, read-only): no `/usr` overlay, the unit and link are in the root filesystem (seen through a bind mount of `/`), and the bootstrap started at boot.
+- 0.3.1 (host tests only): the unit is written through a bind mount of `/` (under any overlay); `status` reports `partial reason=bootstrap-missing` when the root filesystem lacks it. Tests: `test_the_bootstrap_lands_in_the_root_filesystem_under_a_usr_overlay` (fails on 0.3.0), `test_status_reports_a_bootstrap_that_only_an_overlay_holds`. **Device-verified 2026-10-22 (tester's Force, USB flash drive as the exec drive):** 0.3.0 removed with its uninstaller, 0.3.1 installed from the installer app (0.5.5 with a test catalog via `--catalog`), two reboots without manual starts: the exec mount came up and plugins loaded from the drive both times.
+- **0.3.2 (2026-10-22, offline):** the tester then found the internal-bay SSD (`/media/Force SSD`, exFAT, `noexec`) was never picked up: `noexec_drives()` only printed the USB stick. Cause: BusyBox awk treats the backslash in `[^\/]` as a literal, so `/media/Force\040SSD` failed `^\/media\/[^\/]+$`. gawk and mawk accept it, which is why the host tests (with a "SSD - Force" drive) passed. Reproduced and fixed with `busybox:1.36` in Docker (the pattern is now the string `"^/media/[^/]+$"`); a test rejects `[^\/]` in the script. `drive_exec` (replaced, kept for uninstalls) still has the old pattern.
+- **In-place update (2026-10-22, offline):** the installer app only runs the current script, which refused an installed 0.3.0/0.3.1 (`unsupported reason=other-version`), so users had to uninstall over SSH. 0.3.2 now reports those as `state=old-patch supported=1` (the app shows "Older version applied" with Apply and Undo), and `install`/`uninstall` remove them with their own `/etc/auto-exec/uninstall.sh` first. Unknown versions are still refused. Test: `test_an_older_version_is_updated_in_place` installs the real 0.3.0 and 0.3.1 scripts from git history (CI now checks out with `fetch-depth: 0`). Not yet run on a device.
+
+## 2026-10-22: MPC Live III (Gen2) network reachability from a brand-new unit, stock MPC OS 3.9.1
+
+A fresh Live III (no MockbaMod, no SSH setup) was brought onto the network for the first time, alongside the existing Force
+path above (which already has SSH; see `docs/FIRMWARE_BUILDER.md` and the device-specific access note kept out of this repo).
+
+- **USB-C is audio/MIDI only.** Plugged into a PC, it enumerates purely as a USB class-compliant audio interface and MIDI
+  device (confirmed from the host OS's device list: one MIDI endpoint, one audio in/out pair, no network adapter, no mass
+  storage, no serial/debug interface). USB-C is not a path to the device's filesystem or network stack on this hardware;
+  don't plan on it for install/SSH/debug access.
+- **Wi-Fi gotcha: router "Smart Connect" / tri-band auto-steering breaks the connect with no useful error.** On a tri-band
+  router merging 2.4/5/5GHz under one SSID with band-steering, the Live III's embedded Wi-Fi stack associated then failed
+  with a bare "Failure" (no detail) — WPA2-Personal/PMF-off were already correct, so this wasn't a security-settings issue.
+  A temporary guest 2.4GHz-only SSID connected fine, confirming it. Fix: disable Smart Connect's auto band selection and
+  give 2.4GHz its own dedicated SSID (same WPA2-Personal credentials, mode b+g+n, channel width 20/40MHz, AP isolation off,
+  PMF disabled) rather than letting the router steer it. The Live III joined that split SSID and got a normal DHCP lease.
+- **Stock device has no SSH.** Once on the LAN with a real IP: ICMP ping succeeds; TCP port 22 actively refuses the
+  connection (no sshd running, not just filtered); port 80 answers HTTP with a 404 (likely Akai's `az0x-webserver`, see
+  `docs/FIRMWARE_BUILDER.md` "Why"). So a stock, unmodified unit is reachable on the LAN for read-only network probing but
+  has no root/SSH access — that still needs the firmware-builder route (Force-only, unflashed so far) or the autorun-stick
+  route (`docs/USB_STICK.md`, Gen1/Force-verified only; Gen2 is offline-corroborated, not run by us; see `docs/GEN2.md`).
+
+## 2026-10-23: MPC OS 3.10.0 removes the autorun-stick root route (offline, static analysis of the stock update image)
+
+Compared the stock `MPC-3.9.1-Gen2-update.img` and the just-released `MPC-3.10.0-Gen2-update.img`: extracted each image's main
+xz rootfs with `debugfs`/`xz`, diffed the `MPC` executable. 3.9.1's `MPC` has the `autorun`, `.json`, `.check`, `open.sh` literal
+strings that the autorun-stick mechanism depends on, and `tools/usb_stick/saltscan.py` finds the salt at two offsets as before.
+**3.10.0's `MPC` has none of those strings or the salt bytes** — they are gone outright. In their place, immediately next to the
+same "Script detected... Do you want to run it?" prompt code, 3.10.0 adds `*.scriptpkg` and `/usr/bin/az01-signed-fs`: a signed-
+package scheme replacing the salted-hash check. This matches TheKikGen's prediction (NOTES.md 2026-10-20) that Akai would patch
+autorun at firmware v3.10+ — now confirmed, not speculative. `docs/USB_STICK.md` and `docs/GEN2.md` updated. Not flashed to any
+device; purely a binary diff of the two stock images. (See also a single unverified community report, relayed, that a live
+3.10.0 OTA update left one device's rootfs still reporting "3.9.1" underneath — if real, the live update path and a full image
+reflash may not behave the same way; not something to rely on without a direct device check.)
+
+## 2026-10-23: poloq's Plugin Manager had no Gen2 (aarch64) build; Gen2-compat PR opened upstream
+
+`tools/usb_stick`'s stick defaults to installing `plugin-manager` (poloq-instruments/mpc-vst-manager) via `mpc-store.sh`, which
+already refuses an install with no Gen2 build — and that plugin had none, so the stick's default install did nothing on a real
+Gen2 device. Forked the repo, branch `gen2-compat`: `vst.json` now lists `aarch64` in `targets`; the device probe's `bad_fs()`
+now accepts `exfat` (Gen2's `/nvme` is exFAT, not ext4); the `MPC.settings` glob now also checks `/data/Settings` (Gen2 has no
+`/media/az01-internal`); the installed-plugin scan reads `pluginList-arm-64bit` on aarch64 instead of `pluginList-arm`; the
+internal-storage preference and defaults list include `/nvme/Synths`; and `do_launch()`'s restart path was `#ifdef __arm__`
+(32-bit ARM only — on a real aarch64 build it silently took the dry-run branch and never actually restarted MPC), now
+`#if defined(__arm__) || defined(__aarch64__)`. Tested offline only: a new fake device `tests/devices/gen2.sh` (modelled on the
+confirmed Live III layout) resolves to `/nvme/Synths` under the existing x86 `tests/run.sh`, and the same build re-run under real
+aarch64 emulation (QEMU, `arm64v8/gcc:12-bookworm`) confirms the `uname()`-gated branches actually take the Gen2 path for real.
+PR: <https://github.com/poloq-instruments/mpc-vst-manager/pull/12>. Not run on real Gen2 hardware; not merged.
+
+## 2026-10-23: three addins confirmed together on a real Gen2 device (Live III, MPC OS 3.9.1); two device-found installer bugs fixed
+
+mpc-addin-remote, mpc-addin-skipback and mpc-addin-commander (each already Gen2-compat per their own PRs above) installed and
+device-tested on a Live III, all three loaded together with no conflicts (`tested.json` in each repo):
+- **remote** 1.0.1: screen capture `"ok"` at 1280x800, touch device found — the RK3588 AFBC/tiled-buffer risk flagged in its PR did
+  not materialize; this device's scanout is a linear buffer.
+- **skipback** 0.6.1: loaded, LD_PRELOAD confirmed.
+- **commander** (PR already merged upstream as v1.1.0 before this session caught up to it): loaded, HTTP answering, its
+  `dlsym(RTLD_NEXT)` preload-chaining fix holds with the other two present.
+
+**Found installing the first one (remote): the shared addin installer never worked on this device at all.** Two bugs, both in
+`tools/release/addin/addin-lib.sh`, neither caught by the existing test suite because no test ever made the drop-in's own target
+directory genuinely unwritable (only the *unit file* in the read-only-root test case, never the drop-in's folder):
+1. `preload_add`/`preload_remove` never remounted root before writing the shared `LD_PRELOAD` drop-in to `/etc/systemd/system` —
+   only `boot_reload_add`/`remove` did, for a different problem (the `/etc`-is-an-overlay boot race). Worked by luck on every
+   device seen before (Gen1/Force: a writable root, or `/etc` already on a writable overlay).
+2. Even with that fixed, this device's root is **true dm-verity** (`/dev/dm-0`): `mount -o remount,rw /` is refused outright, not
+   just permission-denied, so there is no way to write under `/etc` at all, ever. Fixed with a `/run` (tmpfs) fallback
+   (`resolve_dropin_root()`): not persistent, so `install.sh` now also carries into the installed folder (`install.sh` and
+   `mpc-plugin.json` added to `SELF_FILES`), letting `sh /data/mpc-addins/<id>/install.sh -y -n` redo the entry after a reboot
+   without the release zip.
+3. The USB stick's `run.sh` (`tools/usb_stick`, branch `usb-bootstrap`, local only) now does exactly that for every installed
+   addin on each boot it is inserted for, so reinserting it restores both SSH and every addin in one step on this device.
+
+Verified end to end on the device itself: wiped the `/run` drop-in by hand (what a real reboot does) and ran the stick's exact
+loop — all three addins' `LD_PRELOAD` entries came back correctly from just their own folders. docs/ADDINS.md documents the new
+"/run fallback" case; `tools/test_addin.sh` cases 15/16 (remount works / is refused outright) and 3c (the folder's own install.sh
+after a simulated reboot) cover it offline. Issue #515 (the nightly catalog build failing commander's Gen2 asset on the
+now-stale "addins are armv7 only" check) is the first real-world confirmation the fix was needed; #512 merged to close it.
+
+## 2026-10-23: MPC fills its filmstrip cache in RAM and never empties it (MPC Live III, Gen2, MPC OS 3.9.1; device)
+Found while testing a plugin with a many-knob skin: MPC raised a **"Low Memory!" System Resources dialog** (a 100% meter) with the
+project idle. `/var/volatile` is a 3.9 GB tmpfs on this device, and it was 100% full: all of it in `/var/volatile/tmp/filmstrips/`
+(`/tmp/filmstrips` shows the same files on Gen1/Force), 1,660 `temp_<hash>.img` files, 3.96 GB, the oldest from the boot a day earlier.
+MPC writes one file per distinct knob filmstrip each time it loads a skin and **does not delete them** (not on project close, not on an
+MPC restart through `acvs`; only a reboot clears the tmpfs). `MemAvailable` was 380 MB of 8 GB, with 5.7 GB of it shown as `Shmem`.
+- A skin with ~190 live knobs wrote 86 files / 195 MB each time it was loaded (several loads per install and restart); the same plugin's
+  later skin, which reuses one knob strip and fewer controls, wrote 11 small files. So **many distinct knob sizes or strips per skin
+  cost RAM on every load**: keep knob sizes and strips few (docs/PORTING.md's skin checklist).
+- MPC held none of the files open or mapped (checked `/proc/<pid>/fd` and `maps`); deleting all of them over SSH freed 3.96 GB
+  (`MemAvailable` 380 MB -> 4.4 GB) and the running project kept drawing. Workaround on a device that shows the warning: reboot, or
+  `rm /var/volatile/tmp/filmstrips/temp_*.img`. Not verified on a Gen1/Force or whether MPC re-reads an old file by name.
+- It refills fast: after the clean-up above, several MPC restarts and plugin loads (a plugin being reinstalled and re-added) put **2,091 files / 3.97 GB** back into the
+  tmpfs within about two hours, and the "RAM at 100%" the user saw when changing a plugin's ROM was this cache, not the plugin. Emptied again (`MemAvailable` 0.46 -> 4.5 GB, MPC's
+  own `RssShmem` unchanged at 1.38 GB). Osirus's emulator memory shows in MPC's process as two 576 MB `/dev/zero` shared mappings (gearmulator's DSP memory), about 1.4 GB of shmem with a Virus C ROM.
+
+## 2026-10-23: Osirus (Access Virus emulation) CPU on a Live III (device; first reading, one patch, no bench)
+The Osirus port (own repo, Gen2 only) runs gearmulator's DSP56300 JIT on an emulator thread inside MPC. Playing a Virus A ROM
+(likely; the first ROM in the folder) the emulator thread used **about 59% of one core** over 10 s (`/proc/<pid>/task/<tid>/stat`,
+nice -10), MPC's four AudioWorkers 2-5% each, load average 1.1 on 8 cores. The same engine renders a Virus A at ~9x realtime on an x86
+WSL host, and `tools/bench.sh` is useless for this plugin (silent PASS, 5% p99): its worker thread is paced by the audio ring, which
+the bench's unpaced loop starves (docs/BENCH.md already warns about background threads). Virus B and C need more DSP time; their
+default DSP clock reduction (45% / 35%) comes from a Move's Cortex-A72 and has not been checked here. Sound and the skin were confirmed
+working by the user on the same unit.

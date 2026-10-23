@@ -43,6 +43,9 @@ if [ -z "$MPC_INSTALL_TEST" ] && [ "$CMD" != list ] && [ $DRY = 0 ]; then
     case "$ARCH" in armv7*|aarch64) ;; *) die "this is for MPC OS devices (Gen1 32-bit ARM or Gen2 aarch64); this one is $ARCH" ;; esac
     command -v systemctl >/dev/null || die "systemctl not found"
 fi
+# Gen2 (the Live III, MPC OS 3.x aarch64): /sdcard isn't mounted, so the writable internal drive is /nvme/Synths.
+# Fall back to it when the /sdcard default is in effect and absent (harmless on Gen1/Force).
+[ "$SYNTHS" = /sdcard/Synths ] && [ ! -d /sdcard/Synths ] && [ -d /nvme ] && SYNTHS=/nvme/Synths
 SETTINGS="${MPC_SETTINGS:-$(ls /media/az01-internal/Settings/*/MPC.settings /data/Settings/*/MPC.settings 2>/dev/null | head -n 1)}"
 W="${MPC_STORE_TMP:-/tmp}/mpc-store.$$"; mkdir -p "$W" || die "cannot create $W"
 trap 'rm -rf "$W"' EXIT
@@ -153,7 +156,7 @@ do_list() {
         [ "$kind" != addin ] || name="$name (addin)"
         mark=""; if [ "$inst" != "-" ] && [ "$inst" != "manual" ] && [ "$inst" != "$ver" ]; then mark="  (update available)"; fi
         if [ "$os" = "3.x" ]; then mark="$mark  [MPC OS 3.x only]"; fi
-        if [ "$ARCH" = aarch64 ] && [ "$kind" != addin ] && { [ -z "$url64" ] || [ "$url64" = "-" ]; }; then mark="$mark  [no Gen2 build]"; fi
+        if [ "$ARCH" = aarch64 ] && { [ -z "$url64" ] || [ "$url64" = "-" ]; }; then mark="$mark  [no Gen2 build]"; fi
         printf '%-18s %-9s %-10s %s%s\n' "$id" "$ver" "$inst" "$name" "$mark"
     done
 }
