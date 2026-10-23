@@ -15,6 +15,7 @@ elf() {   # elf <file> <class+data> <e_type> <e_machine>: the first 20 bytes of 
 pkg() {   # pkg <id>: a package folder for a fake addin
     rm -rf "$T/pkg-$1"; mkdir -p "$T/pkg-$1"
     cp install.sh uninstall.sh addin-lib.sh "$T/pkg-$1/"
+    printf '{"arch": "armv7"}\n' > "$T/pkg-$1/mpc-plugin.json"   # install.sh reads "arch" from this for the device check
     printf 'ADDIN_ID=%s\nADDIN_NAME="Test %s"\nADDIN_SO=lib%s.so\nADDIN_CONF=%s.conf\nADDIN_FILES="%s.dat"\nADDIN_DONE="see %s"\nADDIN_VERSION=1.2.3\n' "$1" "$1" "$1" "$1" "$1" "$1" > "$T/pkg-$1/addin.manifest"
     elf "$T/pkg-$1/lib$1.so" '\001\001' '\003\000' '\050\000'; echo "default=1" > "$T/pkg-$1/$1.conf"; echo data > "$T/pkg-$1/$1.dat"
 }
@@ -72,9 +73,24 @@ run b uninstall.sh
 # 3b. removing from the installed folder itself, without the release, and reinstalling from it
 fresh; unit 'Environment=LD_PRELOAD=/usr/lib/x.so'
 run a install.sh
-ADDIN_INSTALL_TEST=1 SYSTEMD_ROOT="$T/root" ADDIN_TEST_LOG="$T/log" $SH "$T/addins/a/install.sh" -y -n > "$T/out" 2>&1 && bad "the folder has an install.sh" || ok "the folder has no install.sh"
-ADDIN_INSTALL_TEST=1 SYSTEMD_ROOT="$T/root" ADDIN_TEST_LOG="$T/log" $SH "$T/addins/a/uninstall.sh" -y -n -t "$T/addins/a" > "$T/out" 2>&1 || cat "$T/out"
+selfrun() { ADDIN_INSTALL_TEST=1 SYSTEMD_ROOT="$T/root" ADDIN_TEST_LOG="$T/log" $SH "$T/addins/a/$1" -y -n -t "$T/addins/a" > "$T/out" 2>&1 || cat "$T/out"; }
+for f in addin.manifest addin-lib.sh uninstall.sh install.sh mpc-plugin.json; do [ -f "$T/addins/a/$f" ] || bad "$f not copied into the folder"; done
+selfrun uninstall.sh
 [ "$(line)" = "Environment=LD_PRELOAD=/usr/lib/x.so" ] && [ ! -e "$T/addins/a" ] && ok "the folder's own uninstall.sh removes it" || bad "self uninstall: $(line)"
+
+# 3c. the folder's own install.sh redoes the shared drop-in after a reboot wipes /run (the Live III scenario, case
+# 16 above): the installed folder is on /data, which survives, with install.sh/mpc-plugin.json/addin-lib.sh copied
+# into it, so it can redo the LD_PRELOAD entry without the original release zip. This is what the USB stick's
+# run.sh does for every installed addin on each boot it is inserted.
+printf '/dev/root / ext4 ro,relatime 0 0\n' > "$T/mounts-ro-noovl"; export ADDIN_MOUNTS="$T/mounts-ro-noovl"
+fresh; unit 'Environment=LD_PRELOAD=/usr/lib/x.so'; ro a-w
+ADDIN_REMOUNT_FAILS=1 run a install.sh
+RUNDROP="$T/root/run/systemd/system/acvs.service.d/90-mpc-addins.conf"
+grep -qx "Environment=LD_PRELOAD=/usr/lib/x.so:$A" "$RUNDROP" || bad "setup: expected the /run drop-in"
+rm -rf "$T/pkg-a" "$T/root/run"   # the release is gone and /run is wiped, as after a reboot; /data (addins/) stays
+ADDIN_REMOUNT_FAILS=1 selfrun install.sh
+grep -qx "Environment=LD_PRELOAD=/usr/lib/x.so:$A" "$RUNDROP" && ok "the folder's own install.sh redoes the /run drop-in after a reboot, without the release" || bad "self install after reboot: $(cat "$T/out")"
+export ADDIN_MOUNTS="$T/mounts-plain"
 
 # 4. a line holding only this addin: uninstall drops the assignment
 fresh; unit "Environment=LD_PRELOAD=$A"

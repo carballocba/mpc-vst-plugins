@@ -232,7 +232,11 @@ boot_reload_remove() {   # service: once the shared drop-in is gone (the last ad
 #   ADDIN_NETWORK 1 if ADDIN_CONF has a bind= setting: a first interactive install asks whether to open it to the network ("" or 0 none)
 #   ADDIN_VERSION X.Y.Z, written by tools/release_addin.py ("" for a build that was not released)
 # Only plain assignments: tools/catalog_check.py refuses a manifest with anything else in it.
-SELF_FILES="addin.manifest addin-lib.sh uninstall.sh"   # copied into the folder too, so it can remove itself
+SELF_FILES="addin.manifest addin-lib.sh uninstall.sh install.sh mpc-plugin.json"   # copied into the folder too, so it
+    # can remove itself, and reinstall itself (needed on a device with no persistent /etc: the LD_PRELOAD drop-in
+    # goes in /run, wiped by a reboot, so sh /data/mpc-addins/<id>/install.sh -y -n redoes it without the release
+    # zip; mpc-plugin.json travels with it so the arch check still has the right PKG_ARCH). The USB stick's run.sh
+    # (docs/USB_STICK.md) does this for every installed addin on each boot it is inserted for.
 load_manifest() {
     [ -f addin.manifest ] || die "addin.manifest is missing next to install.sh"
     ADDIN_ID=""; ADDIN_NAME=""; ADDIN_SO=""; ADDIN_CONF=""; ADDIN_FILES=""; ADDIN_DONE=""; ADDIN_NETWORK=""; ADDIN_VERSION=""
